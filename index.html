@@ -144,6 +144,20 @@ tbody tr.evt td:first-child{color:var(--brass)}
   font-family:'JetBrains Mono',monospace;font-size:11px;border-radius:8px;padding:10px;resize:vertical;margin-bottom:10px}
 .bk-row{display:flex;gap:8px;padding-bottom:14px}
 @media(max-width:880px){.sgrid{grid-template-columns:1fr}.settings-head h2{font-size:20px}}
+
+/* cloud sync + auth */
+.authbar{margin-left:auto;display:flex;align-items:center;gap:10px}
+.authbar .who{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.abtn{background:var(--panel);border:1px solid var(--line);color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.05em;padding:8px 13px;border-radius:9px;cursor:pointer}
+.abtn.primary{background:rgba(79,176,165,.14);border-color:var(--teal);color:var(--text)}
+.abtn:hover{border-color:var(--teal)}
+.sgroup.cloud{border-color:rgba(79,176,165,.4)}
+.sgroup.cloud h3{color:var(--teal)}
+.sgroup.cloud p{color:var(--muted);font-size:12.5px;line-height:1.5;max-width:76ch;margin:0 0 8px}
+.sgroup.cloud p.hint{color:var(--faint);font-size:11.5px}
+.sgroup.cloud code{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text);background:var(--panel2);padding:1px 5px;border-radius:4px}
+.sgroup.cloud b{color:var(--text)}
+.sgroup.cloud textarea{width:100%;background:var(--ink);border:1px solid var(--line);color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:11px;border-radius:8px;padding:10px;resize:vertical;margin:6px 0 10px;min-height:90px}
 </style>
 </head>
 <body>
@@ -155,6 +169,7 @@ tbody tr.evt td:first-child{color:var(--brass)}
   <nav class="nav" role="group" aria-label="view">
     <button id="nav-dash" aria-pressed="true">Dashboard</button>
     <button id="nav-set" aria-pressed="false">Settings</button>
+    <div id="authbar" class="authbar"></div>
   </nav>
   <div id="view-dashboard">
   <div class="verdict" id="verdict"></div>
@@ -617,6 +632,7 @@ function renderSettings(){
   document.getElementById('view-settings').innerHTML=
     `<div class="settings-head"><div><h2>Assumptions &amp; values</h2><p>Edit anything as you learn more. Changes save to this browser automatically and feed straight into the dashboard.</p></div>`+
     `<div class="settings-actions"><span id="saveDot" class="savedot">Saved \u2713</span><button type="button" id="btnReset" class="btn ghost">Reset to original</button></div></div>`+
+    cloudHTML()+
     body+
     `<details class="backup"><summary>Backup / transfer my values</summary><p>Settings live on this device only. To move them to another device \u2014 or to make them the file\u2019s permanent default \u2014 copy this text and keep it, or paste a saved copy back in.</p>`+
     `<textarea id="jsonBox" rows="5" readonly></textarea><div class="bk-row"><button type="button" id="btnCopy" class="btn">Copy</button><button type="button" id="btnLoad" class="btn">Load from pasted text</button></div></details>`;
@@ -634,6 +650,7 @@ function renderSettings(){
   document.getElementById('btnReset').addEventListener('click',()=>{ if(confirm('Reset every value to the original plan assumptions?')){ S=Object.assign({},DEFAULTS); saveState(); renderSettings(); syncDashboard(); }});
   document.getElementById('btnCopy').addEventListener('click',()=>{ const tb=document.getElementById('jsonBox'); tb.select(); try{document.execCommand('copy');}catch(e){} if(navigator.clipboard)navigator.clipboard.writeText(tb.value); const b=document.getElementById('btnCopy'); b.textContent='Copied'; setTimeout(()=>{b.textContent='Copy';},1200); });
   document.getElementById('btnLoad').addEventListener('click',()=>{ const t=prompt('Paste your saved settings text:'); if(!t)return; try{ const o=JSON.parse(t); Object.keys(DEFAULTS).forEach(k=>{ if(o[k]!==undefined)S[k]=o[k]; }); saveState(); renderSettings(); syncDashboard(); }catch(e){ alert('That did not look like valid settings text.'); }});
+  wireCloud();
 }
 function afterSettingsChange(){ saveDebounced(); syncDashboard(); const jb=document.getElementById('jsonBox'); if(jb)jb.value=JSON.stringify(S); }
 
@@ -663,6 +680,89 @@ document.addEventListener('change',saveDebounced);
 document.addEventListener('click',e=>{ if(e.target.closest('.seg,.toggle,#setMax')) saveDebounced(); });
 
 loadState(); syncDashboard(); run();
+</script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/12.3.0/firebase-app-compat.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/12.3.0/firebase-auth-compat.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/12.3.0/firebase-firestore-compat.min.js"></script>
+<script>
+/* ---------- cloud sync: Firebase + Google sign-in ---------- */
+let fbApp=null,fbAuth=null,fbDb=null,fbUser=null,fbReady=false;
+const FB_KEY='ronkate.fbconfig';
+function getFbConfig(){ try{const r=localStorage.getItem(FB_KEY);return r?JSON.parse(r):null;}catch(e){return null;} }
+function setFbConfig(o){ try{localStorage.setItem(FB_KEY,JSON.stringify(o));}catch(e){} }
+function clearFbConfig(){ try{localStorage.removeItem(FB_KEY);}catch(e){} }
+
+/* redefine saveState: local cache + cloud (when signed in) */
+function saveState(){ try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){} flashSaved(); cloudSave(); }
+function cloudSave(){ if(!fbReady||!fbUser)return; try{ fbDb.collection('decumulation').doc(fbUser.uid).set(Object.assign({savedAt:Date.now()},S),{merge:true}).catch(function(){}); }catch(e){} }
+function cloudLoad(){ if(!fbReady||!fbUser)return;
+  fbDb.collection('decumulation').doc(fbUser.uid).get().then(function(snap){
+    if(snap.exists){ const o=snap.data(); Object.keys(DEFAULTS).forEach(function(k){ if(o[k]!==undefined)S[k]=o[k]; });
+      try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){}
+      syncDashboard(); if(!document.getElementById('view-settings').hidden) renderSettings(); run();
+    } else { cloudSave(); }
+  }).catch(function(e){ console.warn('cloud load failed',e); });
+}
+function initFirebase(){
+  const cfg=getFbConfig();
+  if(!cfg || typeof firebase==='undefined'){ updateAuthUI(); return; }
+  try{
+    fbApp=(firebase.apps&&firebase.apps.length)?firebase.app():firebase.initializeApp(cfg);
+    fbAuth=firebase.auth(); fbDb=firebase.firestore(); fbReady=true;
+    fbAuth.onAuthStateChanged(function(u){ fbUser=u; updateAuthUI(); if(u)cloudLoad(); });
+  }catch(e){ console.warn('Firebase init failed',e); fbReady=false; updateAuthUI(); }
+}
+function signIn(){ if(!fbReady){ alert('Add your Firebase config in Settings \u2192 Cloud sync first.'); return; }
+  try{ const prov=new firebase.auth.GoogleAuthProvider(); fbAuth.signInWithPopup(prov).catch(function(e){ alert('Sign-in failed: '+e.message); }); }
+  catch(e){ alert('Sign-in error: '+e.message); } }
+function signOutFb(){ if(fbAuth)fbAuth.signOut(); }
+function authStateText(){ if(!getFbConfig())return 'not configured';
+  if(!fbReady)return 'configured (loading\u2026)';
+  return fbUser?('signed in as '+(fbUser.email||fbUser.displayName||'you')):'configured, signed out'; }
+
+function updateAuthUI(){
+  const bar=document.getElementById('authbar');
+  if(bar){
+    if(!getFbConfig()){ bar.innerHTML=''; }
+    else if(fbUser){ bar.innerHTML='<span class="who">'+(fbUser.email||'signed in')+'</span><button id="ab_out" class="abtn">Sign out</button>';
+      const b=document.getElementById('ab_out'); if(b)b.onclick=signOutFb; }
+    else { bar.innerHTML='<button id="ab_in" class="abtn primary">Sign in with Google</button>';
+      const b=document.getElementById('ab_in'); if(b)b.onclick=signIn; }
+  }
+  const st=document.getElementById('fbStatus'); if(st)st.textContent=authStateText();
+  const ab=document.getElementById('fbAuthBtns');
+  if(ab){ ab.innerHTML=(!getFbConfig())?'':(fbUser?'<button id="s_out" class="btn">Sign out</button>':'<button id="s_in" class="btn">Sign in with Google</button>');
+    const i=document.getElementById('s_in'); if(i)i.onclick=signIn;
+    const o=document.getElementById('s_out'); if(o)o.onclick=signOutFb; }
+}
+function cloudHTML(){
+  const cfg=getFbConfig();
+  let inner;
+  if(!cfg){
+    inner='<p>Paste your Firebase web config (the <code>firebaseConfig</code> object from your Firebase console). This config is safe to embed \u2014 security comes from your sign-in and Firestore rules, not from keeping it secret. You can reuse the same project as your golf apps.</p>'
+      +'<textarea id="fbCfgBox" rows="7" placeholder="const firebaseConfig = { apiKey: ..., authDomain: ..., projectId: ..., appId: ... }"></textarea>'
+      +'<div class="bk-row"><button type="button" id="fbConnect" class="btn">Connect Firebase</button></div>'
+      +'<p class="hint">One-time console setup: enable <b>Authentication \u2192 Google</b>; add <b>ronmooibroek.github.io</b> under Authentication \u2192 Settings \u2192 Authorized domains; create a Firestore database; and set the security rule so each person can only read/write their own document.</p>';
+  } else {
+    inner='<p>Connected to project <b>'+(cfg.projectId||'?')+'</b> \u2014 '+authStateText()+'.</p>'
+      +'<div class="bk-row" id="fbAuthBtns"></div>'
+      +'<div class="bk-row"><button type="button" id="fbDisconnect" class="btn ghost">Disconnect / change project</button></div>'
+      +'<p class="hint">Your assumptions now save to Firestore and follow you across devices when signed in.</p>';
+  }
+  return '<section class="sgroup cloud"><h3>Cloud sync &amp; sign-in</h3>'+inner+'</section>';
+}
+function wireCloud(){
+  const con=document.getElementById('fbConnect');
+  if(con)con.onclick=function(){ const t=(document.getElementById('fbCfgBox')||{}).value||''; const m=t.match(/\{[\s\S]*\}/);
+    if(!m){ alert('Could not find a config object. Paste the whole firebaseConfig = { ... } block.'); return; }
+    let obj; try{ obj=(new Function('return ('+m[0]+')'))(); }catch(e){ alert('That config could not be read: '+e.message); return; }
+    if(!obj||!obj.apiKey||!obj.projectId){ alert('That does not look like a Firebase config (missing apiKey/projectId).'); return; }
+    setFbConfig(obj); alert('Firebase connected. The page will reload to finish setup.'); location.reload(); };
+  const dis=document.getElementById('fbDisconnect');
+  if(dis)dis.onclick=function(){ if(confirm('Disconnect Firebase on this device? Your cloud data stays safe in Firestore.')){ clearFbConfig(); location.reload(); } };
+  updateAuthUI();
+}
+initFirebase();
 </script>
 </body>
 </html>
