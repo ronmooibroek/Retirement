@@ -1,1 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Decumulation Desk — Ron & Kate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,560;9..144,640&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --ink:#0E1417; --panel:#161E23; --panel2:#1B252B; --line:#27343B;
+  --text:#E9E4D6; --muted:#8A949C; --faint:#5C666D;
+  --brass:#C7A24A; --teal:#4FB0A5; --coral:#D9694C; --sage:#8FB46A; --violet:#8C7BC7; --steel:#4F86B0;
+  --r:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:radial-gradient(1200px 600px at 80% -10%, #1a2730 0%, var(--ink) 55%);color:var(--text);
+  font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.45}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--brass)}
+h1{font-family:Fraunces,serif;font-weight:560;font-size:clamp(28px,4.6vw,46px);line-height:1.04;margin:.35em 0 .15em;letter-spacing:-.01em}
+.sub{color:var(--muted);max-width:62ch;font-size:15px}
+.verdict{margin:26px 0 8px;padding:22px 24px;border:1px solid var(--line);border-radius:var(--r);
+  background:linear-gradient(180deg,rgba(199,162,74,.07),rgba(255,255,255,.012))}
+.verdict .big{font-family:Fraunces,serif;font-size:clamp(21px,3.1vw,29px);line-height:1.2;font-weight:560}
+.verdict .big b{color:var(--brass);font-weight:640}
+.verdict .note{color:var(--muted);font-size:14px;margin-top:11px;max-width:76ch}
+.metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:14px 0 6px}
+.metric{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 14px}
+.metric .k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);font-family:'JetBrains Mono',monospace}
+.metric .v{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;margin-top:7px;letter-spacing:-.02em}
+.metric .v small{font-size:11px;color:var(--muted);font-weight:400}
+.metric.good .v{color:var(--sage)} .metric.warn .v{color:var(--coral)} .metric.hi .v{color:var(--brass)}
+.layout{display:grid;grid-template-columns:300px 1fr;gap:22px;margin-top:24px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.panel h3{font-family:Fraunces,serif;font-weight:560;font-size:16px;margin:0 0 2px}
+.controls .grp{margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.controls .grp:last-of-type{border-bottom:0;margin-bottom:0;padding-bottom:0}
+.glabel{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--brass);margin-bottom:12px}
+.ctrl{margin-bottom:14px}
+.ctrl .row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+.ctrl label{font-size:13px;color:var(--text)}
+.ctrl .val{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--brass);font-weight:500}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:3px;border-radius:3px;
+  background:linear-gradient(90deg,var(--brass) var(--p,40%),#2c383f var(--p,40%));outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+  background:var(--text);border:2px solid var(--brass);cursor:pointer;transition:transform .1s}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.18)}
+input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--text);border:2px solid var(--brass);cursor:pointer}
+input[type=range]:focus-visible{outline:2px solid var(--teal);outline-offset:4px}
+.seg{display:flex;gap:6px;margin-top:4px}
+.seg button{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--muted);
+  font-family:Inter;font-size:12.5px;padding:8px 6px;border-radius:9px;cursor:pointer;transition:.12s}
+.seg button[aria-pressed=true]{background:rgba(199,162,74,.16);border-color:var(--brass);color:var(--text)}
+.seg button:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+details{margin-top:4px} details>summary{cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--muted);list-style:none;padding:8px 0}
+details>summary::-webkit-details-marker{display:none}
+details>summary::before{content:"+ ";color:var(--brass)}
+details[open]>summary::before{content:"– "}
+.num{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;gap:10px}
+.num label{font-size:12.5px;color:var(--muted)}
+.num input{width:98px;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+  font-family:'JetBrains Mono',monospace;font-size:12.5px;padding:6px 8px;border-radius:8px;text-align:right}
+.num input:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px 18px 14px;margin-bottom:18px}
+.card .hd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;flex-wrap:wrap;gap:8px}
+.card h2{font-family:Fraunces,serif;font-weight:560;font-size:19px;margin:0}
+.card .cap{color:var(--muted);font-size:12.5px;max-width:62ch;margin-top:3px}
+.chartbox{position:relative;height:300px;margin-top:12px}
+.chartbox.tall{height:340px}
+.ribbon{position:relative;height:64px;margin:16px 4px 4px}
+.ribbon .seg2{position:absolute;top:0;height:6px;border-radius:3px;opacity:.85}
+.ribbon .mk{position:absolute;top:13px;transform:translateX(-50%);text-align:center;width:80px}
+.ribbon .mk .dot{width:8px;height:8px;border-radius:50%;background:var(--brass);margin:0 auto 5px;box-shadow:0 0 0 3px rgba(199,162,74,.16)}
+.ribbon .mk .lb{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);white-space:nowrap;letter-spacing:.02em;line-height:1.3}
+.ribbon .mk .yr{font-family:'JetBrains Mono',monospace;font-size:8.5px;color:var(--faint)}
+.tablewrap{max-height:440px;overflow:auto;border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;font-family:'JetBrains Mono',monospace;font-size:12px}
+th,td{padding:7px 10px;text-align:right;white-space:nowrap}
+th{position:sticky;top:0;background:var(--panel2);color:var(--faint);font-weight:500;font-size:9.5px;
+  letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--line)}
+td:first-child,th:first-child{text-align:left;color:var(--muted)}
+tbody tr:nth-child(even){background:rgba(255,255,255,.018)}
+tbody tr.evt{background:rgba(199,162,74,.08)}
+tbody tr.evt td:first-child{color:var(--brass)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+.toggle{display:flex;gap:6px}
+.toggle button{background:var(--panel2);border:1px solid var(--line);color:var(--muted);font-size:11.5px;
+  padding:5px 11px;border-radius:8px;cursor:pointer}
+.toggle button[aria-pressed=true]{border-color:var(--teal);color:var(--text);background:rgba(79,176,165,.12)}
+.foot{color:var(--faint);font-size:12px;margin-top:26px;line-height:1.6;border-top:1px solid var(--line);padding-top:18px}
+.foot b{color:var(--muted)}
+.insights{list-style:none;padding:0;columns:2;column-gap:24px;margin-top:6px}
+.insights li{break-inside:avoid;margin-bottom:13px;font-size:13.5px;color:var(--text);line-height:1.5;padding-left:14px;position:relative}
+.insights li::before{content:"›";position:absolute;left:0;color:var(--brass)}
+.insights li b{color:var(--brass);font-weight:600}
+@media(max-width:880px){.layout{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}
+  .insights{columns:1}.controls.panel{position:static!important}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Decumulation Desk · Ontario · modelled in 2026 dollars</div>
+  <h1>Spending it down, on purpose</h1>
+  <p class="sub">A year-by-year drawdown model for Ron &amp; Kate — pension, CPP, OAS, RRSP, TFSA and taxable, with Ontario tax, the OAS clawback and pension splitting. Move the levers; everything recomputes live.</p>
+
+  <div class="verdict" id="verdict"></div>
+  <div class="metrics" id="metrics"></div>
+
+  <div class="layout">
+    <aside class="panel controls" style="position:sticky;top:18px">
+      <h3>Levers</h3>
+      <div style="color:var(--muted);font-size:12px;margin:2px 0 16px">Pre-filled from what you told me. Adjust freely.</div>
+
+      <div class="grp">
+        <div class="glabel">Timing</div>
+        <div class="ctrl"><div class="row"><label>Kate retires at</label><span class="val" id="v_kr">55</span></div><input type="range" id="kr" min="50" max="65" value="55"></div>
+        <div class="ctrl"><div class="row"><label>Ron retires at</label><span class="val" id="v_rr">65</span></div><input type="range" id="rr" min="58" max="72" value="65"></div>
+        <div class="ctrl"><div class="row"><label>Downsize home at Ron</label><span class="val" id="v_ds">75</span></div><input type="range" id="ds" min="65" max="90" value="75"></div>
+      </div>
+
+      <div class="grp">
+        <div class="glabel">Lifestyle</div>
+        <div class="ctrl"><div class="row"><label>Annual spend (after-tax, today $)</label><span class="val" id="v_sp">$100k</span></div><input type="range" id="sp" min="80000" max="260000" step="5000" value="100000"></div>
+        <button id="setMax" style="width:100%;background:rgba(143,180,106,.14);border:1px solid var(--sage);color:var(--sage);font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.06em;padding:9px;border-radius:9px;cursor:pointer">Set to sustainable ceiling →</button>
+      </div>
+
+      <div class="grp">
+        <div class="glabel">Government benefits</div>
+        <div class="ctrl"><div class="row"><label>Ron starts CPP at</label><span class="val" id="v_rc">65</span></div><input type="range" id="rc" min="60" max="70" value="65"></div>
+        <div class="ctrl"><div class="row"><label>Kate starts CPP at</label><span class="val" id="v_kc">65</span></div><input type="range" id="kc" min="60" max="70" value="65"></div>
+        <div class="ctrl"><div class="row"><label>OAS start (both)</label><span class="val" id="v_oa">65</span></div><input type="range" id="oa" min="65" max="70" value="65"></div>
+      </div>
+
+      <div class="grp">
+        <div class="glabel">Drawdown strategy</div>
+        <div class="seg" role="group" aria-label="strategy">
+          <button id="s_melt" aria-pressed="true">RRSP meltdown</button>
+          <button id="s_spend" aria-pressed="false">Preserve TFSA</button>
+        </div>
+        <div class="ctrl" style="margin-top:12px"><div class="row"><label>Meltdown bracket target</label><span class="val" id="v_mt">$95k</span></div><input type="range" id="mt" min="55000" max="130000" step="1000" value="95323"></div>
+        <div style="color:var(--faint);font-size:11.5px;line-height:1.45">Meltdown draws registered money up to this taxable-income line each year — staying under the $95,323 OAS clawback threshold while shrinking the future RRIF tax bill.</div>
+      </div>
+
+      <div class="grp">
+        <div class="glabel">Assumptions</div>
+        <div class="ctrl"><div class="row"><label>Investment return</label><span class="val" id="v_ret">5.5%</span></div><input type="range" id="ret" min="3" max="8" step="0.1" value="5.5"></div>
+        <div class="ctrl"><div class="row"><label>Inflation</label><span class="val" id="v_infl">2.1%</span></div><input type="range" id="infl" min="1" max="4" step="0.1" value="2.1"></div>
+      </div>
+
+      <details>
+        <summary>Balances &amp; details</summary>
+        <div style="padding-top:8px">
+          <div class="num"><label>Ron pension (DC) now</label><input id="i_pension" value="800000"></div>
+          <div class="num"><label>Annual pension contrib.</label><input id="i_pc" value="50000"></div>
+          <div class="num"><label>RRSP — Ron</label><input id="i_regRon" value="120000"></div>
+          <div class="num"><label>RRSP — Kate</label><input id="i_regKate" value="100000"></div>
+          <div class="num"><label>Definity (taxable)</label><input id="i_taxable" value="205000"></div>
+          <div class="num"><label>Definity cost base</label><input id="i_acb" value="120000"></div>
+          <div class="num"><label>TFSA now</label><input id="i_tfsa" value="0"></div>
+          <div class="num"><label>Kate DB pension /yr</label><input id="i_kateDb" value="24000"></div>
+          <div class="num"><label>Ron CPP @65 /yr</label><input id="i_rcpp" value="18000"></div>
+          <div class="num"><label>Kate CPP @65 /yr</label><input id="i_kcpp" value="18000"></div>
+          <div class="num"><label>Home value</label><input id="i_home" value="900000"></div>
+          <div class="num"><label>Mortgage balance</label><input id="i_mort" value="650000"></div>
+          <div class="num"><label>Mortgage payment /yr</label><input id="i_mpay" value="54000"></div>
+          <div class="num"><label>Ron plan-to age</label><input id="i_rle" value="90"></div>
+          <div class="num"><label>Kate plan-to age</label><input id="i_kle" value="95"></div>
+          <div class="num" style="border-top:1px solid var(--line);padding-top:8px"><label>Kate DB indexed?</label>
+            <div class="toggle"><button id="dbi_n" aria-pressed="true">No</button><button id="dbi_y" aria-pressed="false">Yes</button></div></div>
+        </div>
+      </details>
+    </aside>
+
+    <main>
+      <div class="card">
+        <div class="hd">
+          <div><h2>The drawdown horizon</h2>
+          <div class="cap">Your investable pools over time. Watch the locked pension get melted into TFSA and taxable, then everything draw down toward the home-equity floor.</div></div>
+          <div class="toggle" role="group" aria-label="dollars"><button id="d_today" aria-pressed="true">Today $</button><button id="d_nom" aria-pressed="false">Nominal $</button></div>
+        </div>
+        <div class="chartbox tall"><canvas id="chartAssets"></canvas></div>
+        <div class="ribbon" id="ribbon"></div>
+        <div class="legend" id="legendAssets"></div>
+      </div>
+
+      <div class="card">
+        <div class="hd"><div><h2>Where the money comes from</h2>
+        <div class="cap">Income by source each year. The guaranteed floor (pension, CPP, OAS) in warm tones; what you pull from savings in cool tones.</div></div></div>
+        <div class="chartbox"><canvas id="chartIncome"></canvas></div>
+        <div class="legend" id="legendIncome"></div>
+      </div>
+
+      <div class="card">
+        <div class="hd"><div><h2>Tax &amp; OAS clawback</h2>
+        <div class="cap">Annual income tax (bars) and any OAS recovery tax (line). Pension splitting after 65 is what keeps the clawback flat.</div></div></div>
+        <div class="chartbox"><canvas id="chartTax"></canvas></div>
+      </div>
+
+      <div class="card">
+        <div class="hd"><div><h2>Year by year</h2><div class="cap" id="tblcap">Balances in today's dollars. Highlighted rows mark milestone ages.</div></div></div>
+        <div class="tablewrap"><table id="tbl"><thead></thead><tbody></tbody></table></div>
+      </div>
+
+      <div class="card">
+        <div class="hd"><div><h2>What this is telling you</h2></div></div>
+        <ul class="insights" id="insights"></ul>
+      </div>
+    </main>
+  </div>
+
+  <div class="foot">
+    <b>Built on current rules:</b> 2026 OAS clawback threshold $95,323 (15% recovery, per person); max OAS ~$8,908/yr at 65–74, +10% at 75; Ontario combined marginal rates incl. surtax (top 53.53%); RRIF minimums per the federal factor table; pension-income splitting up to 50% after 65; TFSA cumulative room ~$109k each in 2026.<br><br>
+    This is a planning model with deliberate simplifications (a smoothed combined-tax function rather than line-by-line credits; the locked pension modelled with RRIF-style minimums rather than full LIF maximums; a single steady return, no market-sequence risk). It is not financial, tax, or legal advice — use it to frame conversations with a fee-only planner or your accountant, not as a final answer. I'm not a licensed advisor.
+  </div>
+</div>
+<script>
+/* ---------- engine (validated in Node; balances + flows stored nominal) ---------- */
+const MAXCPP=17196;
+const idx=(y,i)=>Math.pow(1+i,y-2026);
+function rrif(age){ if(age<71) return 1/(90-age);
+  const t={71:.0528,72:.054,73:.0553,74:.0567,75:.0582,76:.0598,77:.0617,78:.0636,79:.0658,80:.0682,81:.0708,82:.0738,83:.0771,84:.0808,85:.0851,86:.0899,87:.0955,88:.1021,89:.1099,90:.1192,91:.1306,92:.1449,93:.1634,94:.1879};
+  return age>=95?0.2:(t[age]||0.2); }
+const BR=[[52886,.2005],[58523,.2415],[93132,.2965],[105775,.3148],[109727,.3389],[117065,.3791],[150000,.4341],[177882,.4497],[220000,.4829],[253414,.4985],[Infinity,.5353]];
+function bTax(inc,f){let t=0,p=0;for(const [ub,r] of BR){const b=ub===Infinity?Infinity:ub*f;if(inc>p)t+=(Math.min(inc,b)-p)*r;p=b;if(inc<=b)break;}return t;}
+function pTax(tx,age,elig,f){ if(tx<=0)return 0; const bpa=16129*f;
+  let aa=age>=65?Math.max(0,9000*f-Math.max(0,tx-46432*f)*0.15):0;
+  const pen=Math.min(2000*f,Math.max(0,elig)); return Math.max(0,bTax(tx,f)-(bpa+aa+pen)*0.2005); }
+function marg(tx,f){ for(const [ub,r] of BR){ if(tx< ub*f) return r;} return 0.5353; }
+function hh(ron,kate,f,single){
+  let rE=ron.elig,kE=kate.elig;
+  let rT=ron.ord+ron.elig+ron.oas, kT=kate.ord+kate.elig+kate.oas;
+  if(!single&&ron.canSplit&&rT>kT){const Sp=ron.elig*0.5;const mv=Math.max(0,Math.min((rT-kT)/2,Sp));rT-=mv;kT+=mv;rE-=mv;kE+=mv;}
+  const thr=95323*f;
+  const cR=Math.min(ron.oas,Math.max(0,rT-thr)*0.15), cK=single?0:Math.min(kate.oas,Math.max(0,kT-thr)*0.15);
+  const tax=pTax(rT,ron.age,rE,f)+(single?0:pTax(kT,kate.age,kE,f));
+  return {tax:tax+cR+cK, claw:cR+cK};
+}
+function simulate(p){
+  let regRon=+p.regRon,regKate=+p.regKate,pension=+p.pension,tfsa=+p.tfsa,taxable=+p.taxable,acb=+p.acb;
+  let home=+p.home,mort=+p.mort,room=218000;
+  let conv=false,rolled=false,downsized=false,payoff=null,pensionAtRet=null,ronDeathYr=null;
+  const rows=[]; let ltTax=0,peakClaw=0,totalShort=0,firstShort=null;
+  const kRetY=p.kateBirth+p.kateRetire, horizon=p.kateBirth+p.kateLE;
+  for(let y=2026;y<=horizon;y++){
+    const f=idx(y,p.infl), aR=y-p.ronBirth, aK=y-p.kateBirth;
+    const rAlive=aR<=p.ronLE, kAlive=aK<=p.kateLE;
+    if(!rAlive&&!rolled){regKate+=regRon+pension;regRon=0;pension=0;rolled=true;ronDeathYr=y;}
+    const single=!rAlive||!kAlive;
+    const rRet=aR>=p.ronRetire, kRet=aK>=p.kateRetire;
+    if(rRet&&!conv){conv=true;pensionAtRet=pension;}
+    let mPay=0; if(mort>0){const I=mort*0.045;mPay=Math.min(p.mpay,mort+I);mort=Math.max(0,mort+I-mPay);if(mort<=0&&!payoff)payoff=y;}
+    if(aR>=p.downsizeAge&&!downsized){const eq=Math.max(0,home-mort);const fr=eq*0.5;taxable+=fr;acb+=fr;home=eq-fr;mort=0;downsized=true;}
+    const phaseB=y>=kRetY;
+    const spendNeed=phaseB?p.spendToday*f+(mort>0?mPay:0):0;
+    const ron={age:aR,ord:0,elig:0,oas:0,canSplit:aR>=65}, kate={age:aK,ord:0,elig:0,oas:0,canSplit:true};
+    if(rAlive&&!rRet)ron.ord+=p.ronSalary*f;
+    if(kAlive&&!kRet)kate.ord+=p.kateSalary*f;
+    const dbI=(kAlive&&kRet)?(p.dbIndexed?p.kateDb*f:p.kateDb):0; kate.elig+=dbI;
+    let rCpp=0,kCpp=0;
+    if(rAlive&&aR>=p.ronCppAge){const a=p.ronCppAge<65?1-0.072*(65-p.ronCppAge):1+0.084*(p.ronCppAge-65);rCpp=p.rcpp*a*f;}
+    if(kAlive&&aK>=p.kateCppAge){const a=p.kateCppAge<65?1-0.072*(65-p.kateCppAge):1+0.084*(p.kateCppAge-65);kCpp=p.kcpp*a*f;}
+    if(!rAlive)kCpp=Math.max(kCpp,Math.min(MAXCPP*f,kCpp+0.6*p.rcpp*f));
+    ron.ord+=rCpp;kate.ord+=kCpp;
+    if(rAlive&&aR>=p.oasAge){let o=8908*(1+0.072*(p.oasAge-65));if(aR>=75)o*=1.1;ron.oas=o*f;}
+    if(kAlive&&aK>=p.oasAge){let o=8908*(1+0.072*(p.oasAge-65));if(aK>=75)o*=1.1;kate.oas=o*f;}
+    let fRon=0,fKate=0;
+    if(conv&&pension>0)fRon+=pension*rrif(aR);
+    if(aR>=71&&regRon>0)fRon+=regRon*rrif(aR);
+    if(aK>=71&&regKate>0)fKate+=regKate*rrif(aK);
+    ron.elig+=fRon;kate.elig+=fKate;
+    let wRon=fRon,wKate=fKate,wTax=0,wTfsa=0,rowTax=0,oasNet=0;
+    if(phaseB){
+      if(p.strategy==='meltdown'){
+        const tg=p.meltTarget*f;
+        let avR=regRon+pension-fRon, eR=Math.max(0,Math.min(tg-(ron.ord+ron.elig+ron.oas),avR));ron.elig+=eR;wRon+=eR;
+        let avK=regKate-fKate, eK=Math.max(0,Math.min(tg-(kate.ord+kate.elig+kate.oas),avK));kate.elig+=eK;wKate+=eK;
+      }
+      const recv=()=>ron.ord+ron.elig+ron.oas+kate.ord+kate.elig+kate.oas+wTax+wTfsa;
+      let H=hh(ron,kate,f,single), net=recv()-H.tax;
+      if(net>=spendNeed){
+        let s=net-spendNeed; const t=Math.min(s,room);tfsa+=t;room-=t;s-=t; taxable+=s;acb+=s;
+      } else {
+        const order=p.strategy==='meltdown'?['taxable','tfsa','reg']:['taxable','reg','tfsa'];
+        for(let pass=0;pass<3;pass++){
+          let gap=spendNeed-(recv()-hh(ron,kate,f,single).tax); if(gap<=1)break;
+          for(const src of order){
+            gap=spendNeed-(recv()-hh(ron,kate,f,single).tax); if(gap<=1)break;
+            if(src==='tfsa'&&tfsa>0){const d=Math.min(gap,tfsa);tfsa-=d;wTfsa+=d;}
+            else if(src==='taxable'&&taxable>0){
+              const gfr=Math.max(0,(taxable-acb)/taxable); const eff=0.5*gfr*marg(ron.ord+ron.elig,f);
+              let d=Math.min(taxable,gap/Math.max(0.3,1-eff));
+              const gain=d*gfr; acb-=d*(acb/taxable); taxable-=d; wTax+=d; ron.ord+=0.5*gain;
+            } else if(src==='reg'){
+              let av=(regRon+pension-wRon)+(regKate-wKate); if(av<=0)continue;
+              const m2=marg(Math.max(ron.ord+ron.elig,kate.ord+kate.elig),f);
+              let d=Math.min(av,gap/Math.max(0.3,1-m2));
+              const dR=Math.min(d,regRon+pension-wRon);ron.elig+=dR;wRon+=dR;
+              const dK=Math.min(d-dR,regKate-wKate);kate.elig+=dK;wKate+=dK;
+            }
+          }
+        }
+      }
+      H=hh(ron,kate,f,single); ltTax+=H.tax/f; peakClaw=Math.max(peakClaw,H.claw/f);
+      rowTax=H.tax; oasNet=ron.oas+kate.oas-H.claw;
+      const actualNet=recv()-H.tax; const sh=Math.max(0,spendNeed-actualNet);
+      if(sh>1){totalShort+=sh/f; if(!firstShort)firstShort=y;}
+      var rowClaw=H.claw;
+    }
+    let dr=wRon; const fp=Math.min(dr,pension);pension-=fp;dr-=fp;regRon=Math.max(0,regRon-dr);
+    regKate=Math.max(0,regKate-wKate);
+    if(!phaseB){pension+=p.pc;const fd=Math.min(13000,room);tfsa+=fd;room-=fd;}
+    else if(!rRet)pension+=p.pc;
+    room+=7000*f;
+    regRon*=1+p.ret;regKate*=1+p.ret;pension*=1+p.ret;tfsa*=1+p.ret;taxable*=1+p.ret;home*=1.03;
+    const port=regRon+regKate+pension+tfsa+taxable;
+    rows.push({y,aR,aK,f,phaseB,
+      regRon,regKate,reg:regRon+regKate,pension,tfsa,taxable,port,home,mort,eq:Math.max(0,home-mort),
+      spend:spendNeed,
+      emp:(rAlive&&!rRet?p.ronSalary*f:0)+(kAlive&&!kRet?p.kateSalary*f:0),
+      db:dbI, cpp:rCpp+kCpp, oas:phaseB?oasNet:0,
+      regDraw:wRon+wKate, savDraw:wTax+wTfsa,
+      tax:rowTax, claw:phaseB?rowClaw:0});
+  }
+  const last=rows[rows.length-1], fE=idx(horizon,p.infl);
+  const reg=last.regRon+last.regKate+last.pension;
+  const tTax=bTax(reg,fE)*0.9;
+  const estate=(last.tfsa+last.taxable+last.eq+Math.max(0,reg-tTax))/fE;
+  return {rows,ltTax,peakClaw,payoff,estate,success:totalShort<1,horizon,pensionAtRet,totalShort,firstShort,ronDeathYr};
+}
+function maxSpend(p){let lo=80000,hi=400000;for(let i=0;i<24;i++){const mid=(lo+hi)/2;
+  if(simulate({...p,spendToday:mid}).totalShort<1)lo=mid;else hi=mid;}return Math.round(lo/1000)*1000;}
+</script>
+<script>
+/* ---------- state ---------- */
+const S={ronBirth:1970,kateBirth:1978,kateRetire:55,ronRetire:65,ronCppAge:65,kateCppAge:65,oasAge:65,
+  ronSalary:198000,kateSalary:80000,kateDb:24000,dbIndexed:false,rcpp:18000,kcpp:18000,
+  regRon:120000,regKate:100000,pension:800000,tfsa:0,taxable:205000,acb:120000,
+  ret:0.055,infl:0.021,pc:50000,home:900000,mort:650000,mpay:54000,downsizeAge:75,ronLE:90,kateLE:95,
+  strategy:'meltdown',meltTarget:95323,spendToday:100000};
+let DOLLARS='today';
+const $=id=>document.getElementById(id);
+const fmtK=v=>{const a=Math.abs(v);if(a>=1e6)return (v<0?'-$':'$')+(a/1e6).toFixed(2)+'M';if(a>=1e3)return (v<0?'-$':'$')+Math.round(a/1e3)+'k';return '$'+Math.round(v);};
+const fmt$=v=>'$'+Math.round(v).toLocaleString();
+const conv=(rows,key)=>rows.map(r=>DOLLARS==='today'?r[key]/r.f:r[key]);
+
+const C={pension:'#8C7BC7',reg:'#4F86B0',tfsa:'#4FB0A5',taxable:'#C7A24A',home:'#6B7780',
+  emp:'#5C666D',db:'#9C7C3A',cpp:'#C7A24A',oas:'#D9694C',regDraw:'#4F86B0',savDraw:'#4FB0A5',
+  tax:'#D9694C',claw:'#8C7BC7'};
+
+Chart.defaults.color='#8A949C';
+Chart.defaults.font.family="'JetBrains Mono', monospace";
+Chart.defaults.font.size=10;
+Chart.defaults.animation=window.matchMedia('(prefers-reduced-motion: reduce)').matches?false:{duration:350};
+const charts={};
+function mkChart(id,cfg){ if(charts[id])charts[id].destroy(); charts[id]=new Chart($(id),cfg); }
+
+/* ---------- run ---------- */
+function run(){
+  const r=simulate(S), ceiling=maxSpend(S);
+  drawVerdict(r,ceiling); drawMetrics(r,ceiling);
+  drawAssets(r); drawRibbon(r); drawIncome(r); drawTax(r); drawTable(r); drawInsights(r,ceiling);
+}
+
+function drawVerdict(r,ceiling){
+  const over=S.spendToday<ceiling-3000;
+  const head=r.success
+    ? `At <b>${fmtK(S.spendToday)}/yr</b>, the plan funds you both to Kate&rsquo;s ${S.kateLE} and still leaves about <b>${fmtK(r.estate)}</b> in today&rsquo;s dollars.`
+    : `At <b>${fmtK(S.spendToday)}/yr</b>, savings run short around <b>${r.firstShort}</b>. Ease spending, work a little longer, or revisit the return assumption.`;
+  const note=over
+    ? `You could sustainably spend up to roughly <b style="color:var(--sage)">${fmtK(ceiling)}/yr</b> and still last to ${S.kateLE}. Your goal is to spend it down, so the gap up to that ceiling is quality-of-life you&rsquo;re currently leaving behind.`
+    : `That sits right at your sustainable ceiling (~${fmtK(ceiling)}/yr). From here, lifetime tax of ${fmtK(r.ltTax)} and peak OAS clawback of ${fmt$(r.peakClaw)} are the dials left to turn.`;
+  $('verdict').innerHTML=`<div class="big">${head}</div><div class="note">${note}</div>`;
+}
+function drawMetrics(r,ceiling){
+  const m=[
+    {k:'Plan status',v:r.success?'Funded':'Short '+r.firstShort,c:r.success?'good':'warn'},
+    {k:'Sustainable spend',v:fmtK(ceiling),sub:'/yr today',c:'hi'},
+    {k:'Estate at horizon',v:fmtK(r.estate),sub:'today $'},
+    {k:'Lifetime tax',v:fmtK(r.ltTax),sub:'today $'},
+    {k:'Peak OAS clawback',v:fmt$(r.peakClaw),sub:'/yr',c:r.peakClaw>500?'warn':'good'},
+    {k:'Mortgage clear',v:r.payoff||'—'}
+  ];
+  $('metrics').innerHTML=m.map(x=>`<div class="metric ${x.c||''}"><div class="k">${x.k}</div><div class="v">${x.v}${x.sub?' <small>'+x.sub+'</small>':''}</div></div>`).join('');
+}
+function legend(el,items){ $(el).innerHTML=items.map(i=>`<span><i style="background:${i.c}"></i>${i.l}</span>`).join(''); }
+
+function area(label,data,color,stack){return{label,data,backgroundColor:color+'33',borderColor:color,borderWidth:1.4,fill:true,stack:stack||'pools',pointRadius:0,tension:.25};}
+function drawAssets(r){
+  const yrs=r.rows.map(x=>x.y);
+  mkChart('chartAssets',{type:'line',data:{labels:yrs,datasets:[
+    area('Pension (locked)',conv(r.rows,'pension'),C.pension),
+    area('RRSP / RRIF',conv(r.rows,'reg'),C.reg),
+    area('TFSA',conv(r.rows,'tfsa'),C.tfsa),
+    area('Taxable (Definity)',conv(r.rows,'taxable'),C.taxable),
+    {label:'Home equity',data:conv(r.rows,'eq'),borderColor:C.home,borderDash:[4,4],borderWidth:1.3,fill:false,stack:'home',pointRadius:0,tension:.25}
+  ]},options:baseOpts(true)});
+  legend('legendAssets',[{l:'Pension (locked)',c:C.pension},{l:'RRSP / RRIF',c:C.reg},{l:'TFSA',c:C.tfsa},{l:'Taxable (Definity)',c:C.taxable},{l:'Home equity (not drawn)',c:C.home}]);
+}
+function drawIncome(r){
+  const yrs=r.rows.map(x=>x.y);
+  const bar=(label,key,color)=>({label,data:conv(r.rows,key),backgroundColor:color,stack:'inc',borderWidth:0,categoryPercentage:.96,barPercentage:1});
+  mkChart('chartIncome',{type:'bar',data:{labels:yrs,datasets:[
+    bar('Employment','emp',C.emp),bar('Kate DB pension','db',C.db),bar('CPP','cpp',C.cpp),
+    bar('OAS (net)','oas',C.oas),bar('Registered draw','regDraw',C.regDraw),bar('TFSA / taxable draw','savDraw',C.savDraw)
+  ]},options:baseOpts(true)});
+  legend('legendIncome',[{l:'Employment',c:C.emp},{l:'Kate DB',c:C.db},{l:'CPP',c:C.cpp},{l:'OAS (net)',c:C.oas},{l:'Registered draw',c:C.regDraw},{l:'TFSA / taxable draw',c:C.savDraw}]);
+}
+function drawTax(r){
+  const ph=r.rows.filter(x=>x.phaseB); const yrs=ph.map(x=>x.y);
+  mkChart('chartTax',{type:'bar',data:{labels:yrs,datasets:[
+    {type:'bar',label:'Income tax',data:DOLLARS==='today'?ph.map(x=>x.tax/x.f):ph.map(x=>x.tax),backgroundColor:C.tax+'cc',borderWidth:0,order:2},
+    {type:'line',label:'OAS clawback',data:DOLLARS==='today'?ph.map(x=>x.claw/x.f):ph.map(x=>x.claw),borderColor:C.claw,backgroundColor:C.claw,borderWidth:2,pointRadius:0,tension:.2,order:1,yAxisID:'y2'}
+  ]},options:{...baseOpts(false),scales:{
+    x:{grid:{display:false},ticks:{maxTicksLimit:10}},
+    y:{grid:{color:'#ffffff10'},ticks:{callback:v=>fmtK(v)},title:{display:true,text:'Income tax'}},
+    y2:{position:'right',grid:{display:false},ticks:{callback:v=>fmtK(v)},title:{display:true,text:'Clawback'},suggestedMax:9000}
+  },plugins:{legend:{display:true,labels:{boxWidth:11,boxHeight:11,usePointStyle:true}},tooltip:tt()}}});
+}
+function baseOpts(stacked){return{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+  scales:{x:{stacked:!!stacked,grid:{display:false},ticks:{maxTicksLimit:10}},
+    y:{stacked:!!stacked,grid:{color:'#ffffff10'},ticks:{callback:v=>fmtK(v)}}},
+  plugins:{legend:{display:false},tooltip:tt()}};}
+function tt(){return{backgroundColor:'#0E1417',borderColor:'#27343B',borderWidth:1,padding:10,titleColor:'#E9E4D6',
+  bodyColor:'#C7CDD2',callbacks:{label:c=>` ${c.dataset.label}: ${fmt$(c.parsed.y)}`}};}
+
+function drawRibbon(r){
+  const start=2026, end=r.horizon, span=end-start;
+  const pos=y=>Math.max(2,Math.min(98,(y-start)/span*100));
+  const kRetY=S.kateBirth+S.kateRetire;
+  let html=`<div class="seg2" style="left:${pos(start)}%;width:${pos(kRetY)-pos(start)}%;background:var(--brass)"></div>`+
+           `<div class="seg2" style="left:${pos(kRetY)}%;width:${pos(end)-pos(kRetY)}%;background:var(--teal)"></div>`;
+  const mk=[{y:kRetY,lb:'Kate retires'},{y:S.ronBirth+S.ronRetire,lb:'Ron retires'},
+    {y:S.ronBirth+S.oasAge,lb:'OAS begins'},{y:S.ronBirth+71,lb:'RRIF minimums'},
+    {y:S.ronBirth+S.downsizeAge,lb:'Downsize'}].filter(m=>m.y>=start&&m.y<=end);
+  mk.forEach((m,i)=>{const top=i%2?38:13; const age=m.y-S.ronBirth;
+    html+=`<div class="mk" style="left:${pos(m.y)}%;top:${top}px"><div class="dot"></div><div class="lb">${m.lb}</div><div class="yr">${m.y} · Ron ${age}</div></div>`;});
+  $('ribbon').innerHTML=html;
+}
+function drawTable(r){
+  const ph=r.rows.filter(x=>x.phaseB);
+  $('tblcap').textContent=`Balances in ${DOLLARS==='today'?"today's":'nominal (future)'} dollars. Highlighted rows mark milestone ages.`;
+  $('tbl').querySelector('thead').innerHTML=`<tr><th>Year</th><th>Ron</th><th>Kate</th><th>Pension</th><th>RRSP/RRIF</th><th>TFSA</th><th>Taxable</th><th>Home eq.</th><th>Spend</th></tr>`;
+  const evY=new Set([S.kateBirth+S.kateRetire,S.ronBirth+S.ronRetire,S.ronBirth+71,S.ronBirth+S.downsizeAge,r.ronDeathYr].filter(Boolean));
+  const c=k=>x=>fmtK(DOLLARS==='today'?x[k]/x.f:x[k]);
+  $('tbl').querySelector('tbody').innerHTML=ph.map(x=>`<tr class="${evY.has(x.y)?'evt':''}"><td>${x.y}</td><td>${x.aR}</td><td>${x.aK}</td><td>${c('pension')(x)}</td><td>${c('reg')(x)}</td><td>${c('tfsa')(x)}</td><td>${c('taxable')(x)}</td><td>${c('eq')(x)}</td><td>${c('spend')(x)}</td></tr>`).join('');
+}
+function drawInsights(r,ceiling){
+  const items=[
+    `<b>You can spend more.</b> At your $100k target the model leaves ~${fmtK(simulate({...S,spendToday:100000}).estate)} behind. Sustainable spending runs to about <b>${fmtK(ceiling)}/yr</b> — roughly ${Math.round((ceiling/100000-1)*100)}% more lifestyle.`,
+    `<b>The real risk isn&rsquo;t running out — it&rsquo;s tax.</b> Your pension reaches ~${fmtK(r.pensionAtRet||1900000)} by retirement. Left alone, forced RRIF minimums after 71 would spike taxable income; the meltdown strategy pulls it down early in low-bracket years.`,
+    `<b>Pension splitting is your shield.</b> Splitting Ron&rsquo;s pension/RRIF income with Kate after 65 keeps both under the $95,323 OAS line — which is why peak clawback here is only ${fmt$(r.peakClaw)}.`,
+    `<b>Fill the empty TFSAs.</b> You have roughly $218k combined room sitting unused while $205k of Definity sits taxable. TFSA withdrawals never count toward the OAS clawback — move money across as brackets allow.`,
+    `<b>Diversify Definity.</b> A single-stock position that size carries concentration risk independent of the tax question; the low-income window is the cheapest time to trim it.`,
+    `<b>Kate&rsquo;s 55–65 window is gold.</b> A decade on just her ~$24k DB pension means very low brackets — ideal for melting registered money and realizing Definity gains cheaply before CPP/OAS start.`,
+    `<b>The house is a second lever.</b> Mortgage clears around ${r.payoff||'—'}; downsizing at ${S.downsizeAge} frees equity you could also spend, pushing the estate toward your minimal-estate goal.`,
+    `<b>Delaying CPP/OAS is worth testing.</b> Pushing both toward 70 trades early cash for larger inflation-indexed income for life — slide the benefit ages and watch lifetime tax and the estate move.`
+  ];
+  $('insights').innerHTML=items.map(t=>`<li>${t}</li>`).join('');
+}
+
+/* ---------- controls ---------- */
+function setSlider(id){const el=$(id);if(!el)return;const mn=+el.min,mx=+el.max;el.style.setProperty('--p',((+el.value-mn)/(mx-mn)*100)+'%');}
+const sliderMap={kr:'kateRetire',rr:'ronRetire',ds:'downsizeAge',sp:'spendToday',rc:'ronCppAge',kc:'kateCppAge',oa:'oasAge',mt:'meltTarget',ret:'ret',infl:'infl'};
+const sliderLabel={kr:v=>v,rr:v=>v,ds:v=>v,sp:v=>fmtK(v),rc:v=>v,kc:v=>v,oa:v=>v,mt:v=>fmtK(v),ret:v=>v+'%',infl:v=>v+'%'};
+Object.keys(sliderMap).forEach(id=>{const el=$(id);setSlider(id);
+  el.addEventListener('input',()=>{let v=+el.value;
+    $('v_'+id).textContent=sliderLabel[id](v);
+    if(id==='ret'||id==='infl')v=v/100;
+    S[sliderMap[id]]=v; setSlider(id); run();});
+});
+const numMap={i_pension:'pension',i_pc:'pc',i_regRon:'regRon',i_regKate:'regKate',i_taxable:'taxable',i_acb:'acb',i_tfsa:'tfsa',i_kateDb:'kateDb',i_rcpp:'rcpp',i_kcpp:'kcpp',i_home:'home',i_mort:'mort',i_mpay:'mpay',i_rle:'ronLE',i_kle:'kateLE'};
+Object.keys(numMap).forEach(id=>{const el=$(id);el.addEventListener('change',()=>{const v=parseFloat(el.value)||0;S[numMap[id]]=v;run();});});
+
+function press(a,b,va,vb,apply){$(a).addEventListener('click',()=>{$(a).setAttribute('aria-pressed','true');$(b).setAttribute('aria-pressed','false');apply(va);run();});
+  $(b).addEventListener('click',()=>{$(b).setAttribute('aria-pressed','true');$(a).setAttribute('aria-pressed','false');apply(vb);run();});}
+press('s_melt','s_spend','meltdown','spendingOnly',v=>S.strategy=v);
+press('d_today','d_nom','today','nominal',v=>DOLLARS=v);
+press('dbi_n','dbi_y',false,true,v=>S.dbIndexed=v);
+
+$('setMax').addEventListener('click',()=>{const c=maxSpend(S);S.spendToday=c;const el=$('sp');
+  if(c>+el.max)el.max=c; el.value=c; $('v_sp').textContent=fmtK(c); setSlider('sp'); run();});
+
+run();
+</script>
+</body>
+</html>
 
