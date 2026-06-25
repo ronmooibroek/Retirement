@@ -103,6 +103,47 @@ tbody tr.evt td:first-child{color:var(--brass)}
 @media(max-width:880px){.layout{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}
   .insights{columns:1}.controls.panel{position:static!important}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* nav + settings */
+.nav{display:flex;gap:8px;align-items:center;margin:24px 0 2px}
+.nav button{background:var(--panel);border:1px solid var(--line);color:var(--muted);font-family:'JetBrains Mono',monospace;
+  font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;padding:9px 17px;border-radius:10px;cursor:pointer;transition:.12s}
+.nav button[aria-pressed=true]{background:rgba(199,162,74,.16);border-color:var(--brass);color:var(--text)}
+.nav button:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+[hidden]{display:none!important}
+.settings-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin:18px 0 14px;flex-wrap:wrap}
+.settings-head h2{font-family:Fraunces,serif;font-weight:560;font-size:24px;margin:0}
+.settings-head p{color:var(--muted);font-size:13.5px;max-width:66ch;margin:6px 0 0}
+.settings-actions{display:flex;align-items:center;gap:12px}
+.savedot{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--sage);opacity:0;transition:opacity .3s}
+.btn{background:var(--panel2);border:1px solid var(--line);color:var(--text);font-family:Inter;font-size:12.5px;padding:8px 14px;border-radius:9px;cursor:pointer}
+.btn:hover{border-color:var(--brass)} .btn.ghost{background:transparent;color:var(--muted)}
+.btn:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.sgroup{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px 20px 6px;margin-bottom:14px}
+.sgroup h3{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--brass);margin:0 0 14px}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 30px}
+.sfield{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:11px 0;border-bottom:1px solid var(--line)}
+.sf-l{flex:1;min-width:0}
+.sf-l label{font-size:13.5px;color:var(--text);display:block}
+.sf-l p{color:var(--faint);font-size:11.5px;line-height:1.4;margin:3px 0 0}
+.sf-c{flex:0 0 auto}
+.sinput{display:flex;align-items:center;gap:5px}
+.sinput input{width:112px;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+  font-family:'JetBrains Mono',monospace;font-size:13px;padding:7px 9px;border-radius:8px;text-align:right}
+.sinput input:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+.sinput .suf{color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:12px}
+.sseg{display:flex;gap:5px}
+.sseg button{background:var(--panel2);border:1px solid var(--line);color:var(--muted);font-family:Inter;font-size:11.5px;padding:7px 11px;border-radius:8px;cursor:pointer;white-space:nowrap}
+.sseg button[aria-pressed=true]{background:rgba(199,162,74,.16);border-color:var(--brass);color:var(--text)}
+.backup{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:4px 20px;margin-top:6px}
+.backup summary{cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:13px 0;list-style:none}
+.backup summary::-webkit-details-marker{display:none} .backup summary::before{content:"+ ";color:var(--brass)}
+.backup[open] summary::before{content:"\2013 "}
+.backup p{color:var(--faint);font-size:12px;line-height:1.5;max-width:72ch}
+.backup textarea{width:100%;background:var(--ink);border:1px solid var(--line);color:var(--muted);
+  font-family:'JetBrains Mono',monospace;font-size:11px;border-radius:8px;padding:10px;resize:vertical;margin-bottom:10px}
+.bk-row{display:flex;gap:8px;padding-bottom:14px}
+@media(max-width:880px){.sgrid{grid-template-columns:1fr}.settings-head h2{font-size:20px}}
 </style>
 </head>
 <body>
@@ -111,6 +152,11 @@ tbody tr.evt td:first-child{color:var(--brass)}
   <h1>Spending it down, on purpose</h1>
   <p class="sub">A year-by-year drawdown model for Ron &amp; Kate — pension, CPP, OAS, RRSP, TFSA and taxable, with Ontario tax, the OAS clawback and pension splitting. Move the levers; everything recomputes live.</p>
 
+  <nav class="nav" role="group" aria-label="view">
+    <button id="nav-dash" aria-pressed="true">Dashboard</button>
+    <button id="nav-set" aria-pressed="false">Settings</button>
+  </nav>
+  <div id="view-dashboard">
   <div class="verdict" id="verdict"></div>
   <div class="metrics" id="metrics"></div>
 
@@ -216,6 +262,9 @@ tbody tr.evt td:first-child{color:var(--brass)}
     </main>
   </div>
 
+  </div><!-- /view-dashboard -->
+  <section id="view-settings" hidden></section>
+
   <div class="foot">
     <b>Built on current rules:</b> 2026 OAS clawback threshold $95,323 (15% recovery, per person); max OAS ~$8,908/yr at 65–74, +10% at 75; Ontario combined marginal rates incl. surtax (top 53.53%); RRIF minimums per the federal factor table; pension-income splitting up to 50% after 65; TFSA cumulative room ~$109k each in 2026.<br><br>
     This is a planning model with deliberate simplifications (a smoothed combined-tax function rather than line-by-line credits; the locked pension modelled with RRIF-style minimums rather than full LIF maximums; a single steady return, no market-sequence risk). It is not financial, tax, or legal advice — use it to frame conversations with a fee-only planner or your accountant, not as a final answer. I'm not a licensed advisor.
@@ -245,7 +294,7 @@ function hh(ron,kate,f,single){
 }
 function simulate(p){
   let regRon=+p.regRon,regKate=+p.regKate,pension=+p.pension,tfsa=+p.tfsa,taxable=+p.taxable,acb=+p.acb;
-  let home=+p.home,mort=+p.mort,room=218000;
+  let home=+p.home,mort=+p.mort,room=+p.tfsaRoom;
   let conv=false,rolled=false,downsized=false,payoff=null,pensionAtRet=null,ronDeathYr=null;
   const rows=[]; let ltTax=0,peakClaw=0,totalShort=0,firstShort=null;
   const kRetY=p.kateBirth+p.kateRetire, horizon=p.kateBirth+p.kateLE;
@@ -256,8 +305,8 @@ function simulate(p){
     const single=!rAlive||!kAlive;
     const rRet=aR>=p.ronRetire, kRet=aK>=p.kateRetire;
     if(rRet&&!conv){conv=true;pensionAtRet=pension;}
-    let mPay=0; if(mort>0){const I=mort*0.045;mPay=Math.min(p.mpay,mort+I);mort=Math.max(0,mort+I-mPay);if(mort<=0&&!payoff)payoff=y;}
-    if(aR>=p.downsizeAge&&!downsized){const eq=Math.max(0,home-mort);const fr=eq*0.5;taxable+=fr;acb+=fr;home=eq-fr;mort=0;downsized=true;}
+    let mPay=0; if(mort>0){const I=mort*p.mortgageRate;mPay=Math.min(p.mpay,mort+I);mort=Math.max(0,mort+I-mPay);if(mort<=0&&!payoff)payoff=y;}
+    if(aR>=p.downsizeAge&&!downsized){const eq=Math.max(0,home-mort);const fr=eq*p.downsizeRelease;taxable+=fr;acb+=fr;home=eq-fr;mort=0;downsized=true;}
     const phaseB=y>=kRetY;
     const spendNeed=phaseB?p.spendToday*f+(mort>0?mPay:0):0;
     const ron={age:aR,ord:0,elig:0,oas:0,canSplit:aR>=65}, kate={age:aK,ord:0,elig:0,oas:0,canSplit:true};
@@ -269,8 +318,8 @@ function simulate(p){
     if(kAlive&&aK>=p.kateCppAge){const a=p.kateCppAge<65?1-0.072*(65-p.kateCppAge):1+0.084*(p.kateCppAge-65);kCpp=p.kcpp*a*f;}
     if(!rAlive)kCpp=Math.max(kCpp,Math.min(MAXCPP*f,kCpp+0.6*p.rcpp*f));
     ron.ord+=rCpp;kate.ord+=kCpp;
-    if(rAlive&&aR>=p.oasAge){let o=8908*(1+0.072*(p.oasAge-65));if(aR>=75)o*=1.1;ron.oas=o*f;}
-    if(kAlive&&aK>=p.oasAge){let o=8908*(1+0.072*(p.oasAge-65));if(aK>=75)o*=1.1;kate.oas=o*f;}
+    if(rAlive&&aR>=p.oasAge){let o=p.oasBase*(1+0.072*(p.oasAge-65));if(aR>=75)o*=1.1;ron.oas=o*f;}
+    if(kAlive&&aK>=p.oasAge){let o=p.oasBase*(1+0.072*(p.oasAge-65));if(aK>=75)o*=1.1;kate.oas=o*f;}
     let fRon=0,fKate=0;
     if(conv&&pension>0)fRon+=pension*rrif(aR);
     if(aR>=71&&regRon>0)fRon+=regRon*rrif(aR);
@@ -316,10 +365,10 @@ function simulate(p){
     }
     let dr=wRon; const fp=Math.min(dr,pension);pension-=fp;dr-=fp;regRon=Math.max(0,regRon-dr);
     regKate=Math.max(0,regKate-wKate);
-    if(!phaseB){pension+=p.pc;const fd=Math.min(13000,room);tfsa+=fd;room-=fd;}
+    if(!phaseB){pension+=p.pc;const fd=Math.min(p.tfsaFundPre,room);tfsa+=fd;room-=fd;}
     else if(!rRet)pension+=p.pc;
-    room+=7000*f;
-    regRon*=1+p.ret;regKate*=1+p.ret;pension*=1+p.ret;tfsa*=1+p.ret;taxable*=1+p.ret;home*=1.03;
+    room+=p.tfsaNewRoom*f;
+    regRon*=1+p.ret;regKate*=1+p.ret;pension*=1+p.ret;tfsa*=1+p.ret;taxable*=1+p.ret;home*=(1+p.homeGrowth);
     const port=regRon+regKate+pension+tfsa+taxable;
     rows.push({y,aR,aK,f,phaseB,
       regRon,regKate,reg:regRon+regKate,pension,tfsa,taxable,port,home,mort,eq:Math.max(0,home-mort),
@@ -340,11 +389,12 @@ function maxSpend(p){let lo=80000,hi=400000;for(let i=0;i<24;i++){const mid=(lo+
 </script>
 <script>
 /* ---------- state ---------- */
-const S={ronBirth:1970,kateBirth:1978,kateRetire:55,ronRetire:65,ronCppAge:65,kateCppAge:65,oasAge:65,
+const DEFAULTS={ronBirth:1970,kateBirth:1978,kateRetire:55,ronRetire:65,ronCppAge:65,kateCppAge:65,oasAge:65,oasBase:8908,
   ronSalary:198000,kateSalary:80000,kateDb:24000,dbIndexed:false,rcpp:18000,kcpp:18000,
-  regRon:120000,regKate:100000,pension:800000,tfsa:0,taxable:205000,acb:120000,
-  ret:0.055,infl:0.021,pc:50000,home:900000,mort:650000,mpay:54000,downsizeAge:75,ronLE:90,kateLE:95,
+  regRon:120000,regKate:100000,pension:800000,tfsa:0,taxable:205000,acb:120000,tfsaRoom:218000,tfsaNewRoom:7000,tfsaFundPre:13000,
+  ret:0.055,infl:0.021,pc:50000,home:900000,homeGrowth:0.03,mort:650000,mortgageRate:0.045,mpay:54000,downsizeAge:75,downsizeRelease:0.5,ronLE:90,kateLE:95,
   strategy:'meltdown',meltTarget:95323,spendToday:100000};
+let S=Object.assign({},DEFAULTS);
 let DOLLARS='today';
 const $=id=>document.getElementById(id);
 const fmtK=v=>{const a=Math.abs(v);if(a>=1e6)return (v<0?'-$':'$')+(a/1e6).toFixed(2)+'M';if(a>=1e3)return (v<0?'-$':'$')+Math.round(a/1e3)+'k';return '$'+Math.round(v);};
@@ -490,6 +540,129 @@ $('setMax').addEventListener('click',()=>{const c=maxSpend(S);S.spendToday=c;con
 
 run();
 </script>
+<script>
+/* ---------- persistence + settings page ---------- */
+const LS_KEY='ronkate.decumulation.v1';
+let _saveT;
+function saveState(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); flashSaved(); }catch(e){} }
+function saveDebounced(){ clearTimeout(_saveT); _saveT=setTimeout(saveState,250); }
+function loadState(){ try{ const raw=localStorage.getItem(LS_KEY); if(raw){ const o=JSON.parse(raw); Object.keys(DEFAULTS).forEach(k=>{ if(o[k]!==undefined) S[k]=o[k]; }); } }catch(e){} }
+function flashSaved(){ const el=document.getElementById('saveDot'); if(!el)return; el.style.opacity='1'; clearTimeout(flashSaved._t); flashSaved._t=setTimeout(()=>{el.style.opacity='0';},1400); }
+
+const FIELDS=[
+ {group:'People & horizon',items:[
+  {k:'ronBirth',l:'Ron \u2014 birth year',t:'int',h:'Used to derive Ron\u2019s age each year.'},
+  {k:'kateBirth',l:'Kate \u2014 birth year',t:'int',h:'Used to derive Kate\u2019s age each year.'},
+  {k:'ronLE',l:'Ron \u2014 plan-to age',t:'int',h:'Age Ron\u2019s income is assumed to continue to; his registered money then rolls tax-free to Kate.'},
+  {k:'kateLE',l:'Kate \u2014 plan-to age',t:'int',h:'The model horizon. Remaining registered money is taxed as a final estate event here.'} ]},
+ {group:'Retirement timing',items:[
+  {k:'kateRetire',l:'Kate retires at age',t:'int',h:'Her salary stops and DB pension begins.'},
+  {k:'ronRetire',l:'Ron retires at age',t:'int',h:'His salary stops and the pension converts to a LIF/RRIF.'} ]},
+ {group:'Employment income (today $)',items:[
+  {k:'ronSalary',l:'Ron \u2014 salary / yr',t:'money',h:'Gross employment income while working.'},
+  {k:'kateSalary',l:'Kate \u2014 salary / yr',t:'money',h:'Gross employment income while working.'} ]},
+ {group:'Pensions',items:[
+  {k:'pension',l:'Ron DC pension \u2014 value now',t:'money',h:'Current balance of Ron\u2019s defined-contribution pension.'},
+  {k:'pc',l:'Annual pension contribution',t:'money',h:'Employer + employee contributions added yearly until Ron retires.'},
+  {k:'kateDb',l:'Kate DB pension / yr',t:'money',h:'Defined-benefit pension paid from her retirement age.'},
+  {k:'dbIndexed',l:'Kate DB indexed to inflation?',t:'bool',h:'Most private DB pensions are not fully indexed \u2014 leave off if unsure.'} ]},
+ {group:'Government benefits',items:[
+  {k:'rcpp',l:'Ron CPP at 65 / yr',t:'money',h:'Estimate from My Service Canada; adjusted for your chosen start age.'},
+  {k:'kcpp',l:'Kate CPP at 65 / yr',t:'money',h:'Estimate from My Service Canada.'},
+  {k:'ronCppAge',l:'Ron CPP start age',t:'int',h:'60\u201370. Each year before 65 cuts 7.2%; each year after adds 8.4%.'},
+  {k:'kateCppAge',l:'Kate CPP start age',t:'int',h:'60\u201370, same adjustment.'},
+  {k:'oasAge',l:'OAS start age (both)',t:'int',h:'65\u201370. Delaying adds 7.2%/yr.'},
+  {k:'oasBase',l:'OAS max at 65 / yr',t:'money',h:'2026 maximum ~$8,908; +10% auto-applied at 75.'} ]},
+ {group:'Investment accounts (today $)',items:[
+  {k:'regRon',l:'RRSP \u2014 Ron',t:'money',h:'Becomes a RRIF; minimum withdrawals begin at 71.'},
+  {k:'regKate',l:'RRSP \u2014 Kate',t:'money',h:'Becomes a RRIF; minimums begin at 71.'},
+  {k:'tfsa',l:'TFSA \u2014 current balance',t:'money',h:'Tax-free; withdrawals never count toward the OAS clawback.'},
+  {k:'taxable',l:'Definity / taxable account',t:'money',h:'Non-registered; growth is partly taxed as it is drawn.'},
+  {k:'acb',l:'Definity cost base (ACB)',t:'money',h:'What you paid \u2014 the gap to market value is the taxable gain.'},
+  {k:'tfsaRoom',l:'Unused TFSA room (combined)',t:'money',h:'~$109k each in 2026 if eligible since 2009.'} ]},
+ {group:'Home & mortgage',items:[
+  {k:'home',l:'Home value',t:'money',h:'Current market value.'},
+  {k:'homeGrowth',l:'Home appreciation / yr',t:'pct',h:'Assumed annual growth in home value.'},
+  {k:'mort',l:'Mortgage balance',t:'money',h:'Current amount owing.'},
+  {k:'mortgageRate',l:'Mortgage interest rate',t:'pct',h:'Used to amortize the balance to payoff.'},
+  {k:'mpay',l:'Mortgage payment / yr',t:'money',h:'Total annual principal + interest.'},
+  {k:'downsizeAge',l:'Downsize at Ron\u2019s age',t:'int',h:'When you sell and free equity (tax-free principal residence).'},
+  {k:'downsizeRelease',l:'Equity released on downsize',t:'pct',h:'Share of home equity moved into the taxable account.'} ]},
+ {group:'Economic assumptions',items:[
+  {k:'ret',l:'Investment return / yr',t:'pct',h:'Applied to all investable accounts \u2014 the biggest swing factor; try a low case.'},
+  {k:'infl',l:'Inflation / yr',t:'pct',h:'Indexes brackets, benefits and spending; results show in today\u2019s dollars.'},
+  {k:'tfsaNewRoom',l:'New TFSA room / yr',t:'money',h:'Annual room added (2026: $7,000, indexed).'},
+  {k:'tfsaFundPre',l:'Pre-retirement TFSA top-up / yr',t:'money',h:'Moved into TFSAs each year before Kate retires.'} ]},
+ {group:'Drawdown strategy',items:[
+  {k:'strategy',l:'Strategy',t:'strat',h:'Meltdown draws registered money early to shrink the future RRIF tax bill; Preserve keeps TFSA for last.'},
+  {k:'meltTarget',l:'Meltdown bracket target',t:'money',h:'Taxable-income line the meltdown fills to each year. $95,323 keeps you under the OAS clawback.'},
+  {k:'spendToday',l:'Annual spend (after-tax, today $)',t:'money',h:'Your target lifestyle; use the dashboard ceiling button for the sustainable max.'} ]}
+];
+
+function fieldControl(it){
+  const v=S[it.k];
+  if(it.t==='bool'||it.t==='strat'){
+    const opts=it.t==='bool'?[['true','Indexed'],['false','Not indexed']]:[['meltdown','RRSP meltdown'],['spendingOnly','Preserve TFSA']];
+    const cur=it.t==='bool'?String(v):v;
+    return `<div class="sseg" data-key="${it.k}" data-type="${it.t}">`+opts.map(o=>`<button type="button" data-v="${o[0]}" aria-pressed="${cur===o[0]}">${o[1]}</button>`).join('')+`</div>`;
+  }
+  let disp=v,suf='';
+  if(it.t==='pct'){ disp=+(v*100).toFixed(2); suf='%'; }
+  return `<div class="sinput"><input inputmode="decimal" data-key="${it.k}" data-type="${it.t}" value="${disp}">${suf?`<span class="suf">${suf}</span>`:''}</div>`;
+}
+function renderSettings(){
+  const body=FIELDS.map(g=>`<section class="sgroup"><h3>${g.group}</h3><div class="sgrid">`+
+    g.items.map(it=>`<div class="sfield"><div class="sf-l"><label>${it.l}</label><p>${it.h}</p></div><div class="sf-c">${fieldControl(it)}</div></div>`).join('')+
+    `</div></section>`).join('');
+  document.getElementById('view-settings').innerHTML=
+    `<div class="settings-head"><div><h2>Assumptions &amp; values</h2><p>Edit anything as you learn more. Changes save to this browser automatically and feed straight into the dashboard.</p></div>`+
+    `<div class="settings-actions"><span id="saveDot" class="savedot">Saved \u2713</span><button type="button" id="btnReset" class="btn ghost">Reset to original</button></div></div>`+
+    body+
+    `<details class="backup"><summary>Backup / transfer my values</summary><p>Settings live on this device only. To move them to another device \u2014 or to make them the file\u2019s permanent default \u2014 copy this text and keep it, or paste a saved copy back in.</p>`+
+    `<textarea id="jsonBox" rows="5" readonly></textarea><div class="bk-row"><button type="button" id="btnCopy" class="btn">Copy</button><button type="button" id="btnLoad" class="btn">Load from pasted text</button></div></details>`;
+  document.getElementById('jsonBox').value=JSON.stringify(S);
+  document.querySelectorAll('#view-settings input[data-key]').forEach(inp=>{
+    inp.addEventListener('change',()=>{ const k=inp.dataset.key,t=inp.dataset.type; let val=parseFloat(inp.value);
+      if(isNaN(val))val=0; if(t==='pct')val=val/100; if(t==='int')val=Math.round(val);
+      S[k]=val; afterSettingsChange(); });
+  });
+  document.querySelectorAll('#view-settings .sseg').forEach(seg=>{
+    seg.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+      const t=seg.dataset.type; let val=b.dataset.v; if(t==='bool')val=(val==='true');
+      S[seg.dataset.key]=val; seg.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); afterSettingsChange(); }));
+  });
+  document.getElementById('btnReset').addEventListener('click',()=>{ if(confirm('Reset every value to the original plan assumptions?')){ S=Object.assign({},DEFAULTS); saveState(); renderSettings(); syncDashboard(); }});
+  document.getElementById('btnCopy').addEventListener('click',()=>{ const tb=document.getElementById('jsonBox'); tb.select(); try{document.execCommand('copy');}catch(e){} if(navigator.clipboard)navigator.clipboard.writeText(tb.value); const b=document.getElementById('btnCopy'); b.textContent='Copied'; setTimeout(()=>{b.textContent='Copy';},1200); });
+  document.getElementById('btnLoad').addEventListener('click',()=>{ const t=prompt('Paste your saved settings text:'); if(!t)return; try{ const o=JSON.parse(t); Object.keys(DEFAULTS).forEach(k=>{ if(o[k]!==undefined)S[k]=o[k]; }); saveState(); renderSettings(); syncDashboard(); }catch(e){ alert('That did not look like valid settings text.'); }});
+}
+function afterSettingsChange(){ saveDebounced(); syncDashboard(); const jb=document.getElementById('jsonBox'); if(jb)jb.value=JSON.stringify(S); }
+
+function syncDashboard(){
+  Object.keys(sliderMap).forEach(id=>{ const el=document.getElementById(id); if(!el)return; let v=S[sliderMap[id]];
+    if(id==='ret'||id==='infl')v=+(v*100).toFixed(1);
+    if(+el.max<v)el.max=v; el.value=v; document.getElementById('v_'+id).textContent=sliderLabel[id](v); setSlider(id); });
+  Object.keys(numMap).forEach(id=>{ const el=document.getElementById(id); if(el)el.value=S[numMap[id]]; });
+  document.getElementById('s_melt').setAttribute('aria-pressed',S.strategy==='meltdown');
+  document.getElementById('s_spend').setAttribute('aria-pressed',S.strategy!=='meltdown');
+  document.getElementById('dbi_y').setAttribute('aria-pressed',!!S.dbIndexed);
+  document.getElementById('dbi_n').setAttribute('aria-pressed',!S.dbIndexed);
+}
+function showView(v){
+  const dash=v==='dashboard';
+  document.getElementById('view-dashboard').hidden=!dash;
+  document.getElementById('view-settings').hidden=dash;
+  document.getElementById('nav-dash').setAttribute('aria-pressed',dash);
+  document.getElementById('nav-set').setAttribute('aria-pressed',!dash);
+  if(dash){ syncDashboard(); run(); } else { renderSettings(); }
+  window.scrollTo(0,0);
+}
+document.getElementById('nav-dash').addEventListener('click',()=>showView('dashboard'));
+document.getElementById('nav-set').addEventListener('click',()=>showView('settings'));
+document.addEventListener('input',saveDebounced);
+document.addEventListener('change',saveDebounced);
+document.addEventListener('click',e=>{ if(e.target.closest('.seg,.toggle,#setMax')) saveDebounced(); });
+
+loadState(); syncDashboard(); run();
+</script>
 </body>
 </html>
-
