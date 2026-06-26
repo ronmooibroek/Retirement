@@ -28,7 +28,7 @@ h1{font-family:Fraunces,serif;font-weight:560;font-size:clamp(28px,4.6vw,46px);l
 .verdict .big{font-family:Fraunces,serif;font-size:clamp(21px,3.1vw,29px);line-height:1.2;font-weight:560}
 .verdict .big b{color:var(--brass);font-weight:640}
 .verdict .note{color:var(--muted);font-size:14px;margin-top:11px;max-width:76ch}
-.metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:14px 0 6px}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;margin:14px 0 6px}
 .metric{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 14px}
 .metric .k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);font-family:'JetBrains Mono',monospace}
 .metric .v{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;margin-top:7px;letter-spacing:-.02em}
@@ -179,6 +179,23 @@ tbody tr.evt td:first-child{color:var(--brass)}
 .askcfg summary::-webkit-details-marker{display:none}.askcfg summary::before{content:"+ ";color:var(--brass)}
 .askcfg[open] summary::before{content:"\2013 "}
 .askcfg p{color:var(--faint);font-size:12px;line-height:1.5;max-width:74ch;margin:0 0 10px}
+
+/* budget & debt lists */
+.sgroup.budget h3{color:var(--brass)}
+.lstlabel{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:16px 0 8px}
+.lstlabel span{text-transform:none;letter-spacing:0;color:var(--faint);font-size:11px}
+.lsthead,.lstrow{display:grid;grid-template-columns:1.4fr 1fr .8fr 1fr auto;gap:6px;align-items:center;margin-bottom:6px}
+.lstrow.ear{grid-template-columns:1.4fr 1fr .7fr .7fr auto}
+.lsthead{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-bottom:4px;padding:0 2px}
+.lsthead span{text-align:right}.lsthead span.l{text-align:left}
+.lstrow input{background:var(--panel2);border:1px solid var(--line);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;padding:7px 8px;border-radius:7px;text-align:right;min-width:0;width:100%}
+.lstrow input.nm{text-align:left}
+.lstrow input:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+.lstrow .del{background:transparent;border:1px solid var(--line);color:var(--coral);border-radius:7px;cursor:pointer;font-size:16px;line-height:1;padding:4px 10px}
+.lstrow .del:hover{border-color:var(--coral)}
+.sgroup.budget .btn{margin-top:8px}
+.sgroup.budget p{color:var(--muted);font-size:12.5px;line-height:1.5;max-width:76ch;margin:0 0 8px}
+@media(max-width:880px){.lsthead{display:none}.lstrow,.lstrow.ear{grid-template-columns:1fr 1fr auto;gap:5px}}
 </style>
 </head>
 <body>
@@ -346,6 +363,7 @@ function simulate(p){
   let regRon=+p.regRon,regKate=+p.regKate,pension=+p.pension,tfsa=+p.tfsa,taxable=+p.taxable,acb=+p.acb;
   let home=+p.home,mort=+p.mort,room=+p.tfsaRoom;
   let conv=false,rolled=false,downsized=false,payoff=null,pensionAtRet=null,ronDeathYr=null;
+  let debts=(p.debts||[]).map(d=>({bal:+d.bal||0,rate:+d.rate||0,pay:+d.pay||0}));
   const rows=[]; let ltTax=0,peakClaw=0,totalShort=0,firstShort=null;
   const kRetY=p.kateBirth+p.kateRetire, horizon=p.kateBirth+p.kateLE;
   for(let y=2026;y<=horizon;y++){
@@ -356,9 +374,12 @@ function simulate(p){
     const rRet=aR>=p.ronRetire, kRet=aK>=p.kateRetire;
     if(rRet&&!conv){conv=true;pensionAtRet=pension;}
     let mPay=0; if(mort>0){const I=mort*p.mortgageRate;mPay=Math.min(p.mpay,mort+I);mort=Math.max(0,mort+I-mPay);if(mort<=0&&!payoff)payoff=y;}
+    let debtPay=0; for(const d of debts){ if(d.bal>0){ const I=d.bal*d.rate; const pay=Math.min(d.pay,d.bal+I); d.bal=Math.max(0,d.bal+I-pay); debtPay+=pay; } }
     if(aR>=p.downsizeAge&&!downsized){const eq=Math.max(0,home-mort);const fr=eq*p.downsizeRelease;taxable+=fr;acb+=fr;home=eq-fr;mort=0;downsized=true;}
     const phaseB=y>=kRetY;
-    const spendNeed=phaseB?p.spendToday*f+(mort>0?mPay:0):0;
+    let earmark=0; for(const e2 of (p.earmarks||[])){ const a=+e2.amt||0; if(aR>=(+e2.from||0)&&aR<=(+e2.to||999)) earmark+=a*f; }
+    let wSurplus=0;
+    const spendNeed=phaseB?(p.spendToday*f+earmark+(mort>0?mPay:0)+debtPay):0;
     const ron={age:aR,ord:0,elig:0,oas:0,canSplit:aR>=65}, kate={age:aK,ord:0,elig:0,oas:0,canSplit:true};
     if(rAlive&&!rRet)ron.ord+=p.ronSalary*f;
     if(kAlive&&!kRet)kate.ord+=p.kateSalary*f;
@@ -415,8 +436,13 @@ function simulate(p){
     }
     let dr=wRon; const fp=Math.min(dr,pension);pension-=fp;dr-=fp;regRon=Math.max(0,regRon-dr);
     regKate=Math.max(0,regKate-wKate);
-    if(!phaseB){pension+=p.pc;const fd=Math.min(p.tfsaFundPre,room);tfsa+=fd;room-=fd;}
-    else if(!rRet)pension+=p.pc;
+    if(!phaseB){
+      const grossA=ron.ord+kate.ord; const HA=hh(ron,kate,f,single); const afterTaxA=grossA-HA.tax;
+      wSurplus=afterTaxA - p.currentExpenses*f - mPay - debtPay;
+      if(wSurplus>=0){ const t=Math.min(wSurplus,room); tfsa+=t; room-=t; taxable+=(wSurplus-t); acb+=(wSurplus-t); }
+      else { let need=-wSurplus; if(taxable>0){ const dT=Math.min(need,taxable); const ratio=acb/taxable; taxable-=dT; acb-=dT*ratio; need-=dT; } const dFx=Math.min(need,tfsa); tfsa-=dFx; need-=dFx; if(need>1){totalShort+=need/f; if(!firstShort)firstShort=y;} }
+      pension+=p.pc;
+    } else if(!rRet)pension+=p.pc;
     room+=p.tfsaNewRoom*f;
     regRon*=1+p.ret;regKate*=1+p.ret;pension*=1+p.ret;tfsa*=1+p.ret;taxable*=1+p.ret;home*=(1+p.homeGrowth);
     const port=regRon+regKate+pension+tfsa+taxable;
@@ -426,13 +452,14 @@ function simulate(p){
       emp:(rAlive&&!rRet?p.ronSalary*f:0)+(kAlive&&!kRet?p.kateSalary*f:0),
       db:dbI, cpp:rCpp+kCpp, oas:phaseB?oasNet:0,
       regDraw:wRon+wKate, savDraw:wTax+wTfsa,
-      tax:rowTax, claw:phaseB?rowClaw:0});
+      tax:rowTax, claw:phaseB?rowClaw:0,
+      wSurplus:wSurplus/f, earmark:earmark/f, debtPay:debtPay/f});
   }
   const last=rows[rows.length-1], fE=idx(horizon,p.infl);
   const reg=last.regRon+last.regKate+last.pension;
   const tTax=bTax(reg,fE)*0.9;
   const estate=(last.tfsa+last.taxable+last.eq+Math.max(0,reg-tTax))/fE;
-  return {rows,ltTax,peakClaw,payoff,estate,success:totalShort<1,horizon,pensionAtRet,totalShort,firstShort,ronDeathYr};
+  return {rows,ltTax,peakClaw,payoff,estate,success:totalShort<1,horizon,pensionAtRet,totalShort,firstShort,ronDeathYr,workingSurplusNow:(rows[0]?rows[0].wSurplus:0)};
 }
 function maxSpend(p){let lo=80000,hi=400000;for(let i=0;i<24;i++){const mid=(lo+hi)/2;
   if(simulate({...p,spendToday:mid}).totalShort<1)lo=mid;else hi=mid;}return Math.round(lo/1000)*1000;}
@@ -443,8 +470,9 @@ const DEFAULTS={ronBirth:1970,kateBirth:1978,kateRetire:55,ronRetire:65,ronCppAg
   ronSalary:198000,kateSalary:80000,kateDb:24000,dbIndexed:false,rcpp:18000,kcpp:18000,
   regRon:120000,regKate:100000,pension:800000,tfsa:0,taxable:205000,acb:120000,tfsaRoom:218000,tfsaNewRoom:7000,tfsaFundPre:13000,
   ret:0.055,infl:0.021,pc:50000,home:900000,homeGrowth:0.03,mort:650000,mortgageRate:0.045,mpay:54000,downsizeAge:75,downsizeRelease:0.5,ronLE:90,kateLE:95,
-  strategy:'meltdown',meltTarget:95323,spendToday:100000};
-let S=Object.assign({},DEFAULTS);
+  strategy:'meltdown',meltTarget:95323,spendToday:100000,
+  currentExpenses:90000,debts:[],earmarks:[{name:'Travel',amt:25000,from:65,to:80}]};
+let S=JSON.parse(JSON.stringify(DEFAULTS));
 let DOLLARS='today';
 const $=id=>document.getElementById(id);
 const fmtK=v=>{const a=Math.abs(v);if(a>=1e6)return (v<0?'-$':'$')+(a/1e6).toFixed(2)+'M';if(a>=1e3)return (v<0?'-$':'$')+Math.round(a/1e3)+'k';return '$'+Math.round(v);};
@@ -486,7 +514,8 @@ function drawMetrics(r,ceiling){
     {k:'Estate at horizon',v:fmtK(r.estate),sub:'today $'},
     {k:'Lifetime tax',v:fmtK(r.ltTax),sub:'today $'},
     {k:'Peak OAS clawback',v:fmt$(r.peakClaw),sub:'/yr',c:r.peakClaw>500?'warn':'good'},
-    {k:'Mortgage clear',v:r.payoff||'—'}
+    {k:'Mortgage clear',v:r.payoff||'—'},
+    {k:'Working-yr savings',v:fmtK(r.workingSurplusNow||0),sub:'/yr',c:(r.workingSurplusNow||0)<0?'warn':'good'}
   ];
   $('metrics').innerHTML=m.map(x=>`<div class="metric ${x.c||''}"><div class="k">${x.k}</div><div class="v">${x.v}${x.sub?' <small>'+x.sub+'</small>':''}</div></div>`).join('');
 }
@@ -641,8 +670,7 @@ const FIELDS=[
  {group:'Economic assumptions',items:[
   {k:'ret',l:'Investment return / yr',t:'pct',h:'Applied to all investable accounts \u2014 the biggest swing factor; try a low case.'},
   {k:'infl',l:'Inflation / yr',t:'pct',h:'Indexes brackets, benefits and spending; results show in today\u2019s dollars.'},
-  {k:'tfsaNewRoom',l:'New TFSA room / yr',t:'money',h:'Annual room added (2026: $7,000, indexed).'},
-  {k:'tfsaFundPre',l:'Pre-retirement TFSA top-up / yr',t:'money',h:'Moved into TFSAs each year before Kate retires.'} ]},
+  {k:'tfsaNewRoom',l:'New TFSA room / yr',t:'money',h:'Annual room added (2026: $7,000, indexed).'} ]},
  {group:'Drawdown strategy',items:[
   {k:'strategy',l:'Strategy',t:'strat',h:'Meltdown draws registered money early to shrink the future RRIF tax bill; Preserve keeps TFSA for last.'},
   {k:'meltTarget',l:'Meltdown bracket target',t:'money',h:'Taxable-income line the meltdown fills to each year. $95,323 keeps you under the OAS clawback.'},
@@ -668,6 +696,7 @@ function renderSettings(){
     `<div class="settings-head"><div><h2>Assumptions &amp; values</h2><p>Edit anything as you learn more. Changes save to this browser automatically and feed straight into the dashboard.</p></div>`+
     `<div class="settings-actions"><span id="saveDot" class="savedot">Saved \u2713</span><button type="button" id="btnReset" class="btn ghost">Reset to original</button></div></div>`+
     cloudHTML()+
+    budgetHTML()+
     body+
     `<details class="backup"><summary>Backup / transfer my values</summary><p>Settings live on this device only. To move them to another device \u2014 or to make them the file\u2019s permanent default \u2014 copy this text and keep it, or paste a saved copy back in.</p>`+
     `<textarea id="jsonBox" rows="5" readonly></textarea><div class="bk-row"><button type="button" id="btnCopy" class="btn">Copy</button><button type="button" id="btnLoad" class="btn">Load from pasted text</button></div></details>`;
@@ -682,10 +711,10 @@ function renderSettings(){
       const t=seg.dataset.type; let val=b.dataset.v; if(t==='bool')val=(val==='true');
       S[seg.dataset.key]=val; seg.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); afterSettingsChange(); }));
   });
-  document.getElementById('btnReset').addEventListener('click',()=>{ if(confirm('Reset every value to the original plan assumptions?')){ S=Object.assign({},DEFAULTS); saveState(); renderSettings(); syncDashboard(); }});
+  document.getElementById('btnReset').addEventListener('click',()=>{ if(confirm('Reset every value to the original plan assumptions?')){ S=JSON.parse(JSON.stringify(DEFAULTS)); saveState(); renderSettings(); syncDashboard(); }});
   document.getElementById('btnCopy').addEventListener('click',()=>{ const tb=document.getElementById('jsonBox'); tb.select(); try{document.execCommand('copy');}catch(e){} if(navigator.clipboard)navigator.clipboard.writeText(tb.value); const b=document.getElementById('btnCopy'); b.textContent='Copied'; setTimeout(()=>{b.textContent='Copy';},1200); });
   document.getElementById('btnLoad').addEventListener('click',()=>{ const t=prompt('Paste your saved settings text:'); if(!t)return; try{ const o=JSON.parse(t); Object.keys(DEFAULTS).forEach(k=>{ if(o[k]!==undefined)S[k]=o[k]; }); saveState(); renderSettings(); syncDashboard(); }catch(e){ alert('That did not look like valid settings text.'); }});
-  wireCloud();
+  wireCloud(); wireBudget();
 }
 function afterSettingsChange(){ saveDebounced(); syncDashboard(); const jb=document.getElementById('jsonBox'); if(jb)jb.value=JSON.stringify(S); }
 
@@ -816,7 +845,8 @@ function planContext(){
     accounts_now:{rrsp_ron:S.regRon,rrsp_kate:S.regKate,tfsa:S.tfsa,taxable_definity:S.taxable,pension_dc:S.pension,unused_tfsa_room:S.tfsaRoom},
     benefits:{ron_cpp_at65:S.rcpp,kate_cpp_at65:S.kcpp,oas_max_each:S.oasBase,cpp_start_age:{ron:S.ronCppAge,kate:S.kateCppAge},oas_start_age:S.oasAge,kate_db_per_yr:S.kateDb,kate_db_indexed:S.dbIndexed},
     assumptions:{investment_return:S.ret,inflation:S.infl,drawdown_strategy:S.strategy,meltdown_bracket_target:S.meltTarget},
-    home:{value:S.home,mortgage:S.mort,downsize_age:S.downsizeAge} };
+    home:{value:S.home,mortgage:S.mort,downsize_age:S.downsizeAge},
+    budget:{ current_living_expenses_per_yr:S.currentExpenses, working_surplus_per_yr:Math.round(r.workingSurplusNow||0), debts:(S.debts||[]).map(d=>({name:d.name,balance:d.bal,rate:d.rate,payment_per_yr:d.pay})), retirement_earmarks:(S.earmarks||[]).map(e=>({name:e.name,amount_per_yr:e.amt,from_ron_age:e.from,to_ron_age:e.to})) } };
   return JSON.stringify(ctx);
 }
 function sysPrompt(){ return "You are a retirement-planning assistant embedded in Ron and Kate's personal decumulation tool for Ontario, Canada. Answer using the figures in CURRENT_PLAN below, which reflect their live model settings and computed results (today's Canadian dollars unless noted). Be concise and specific, cite the actual numbers, and surface trade-offs and the key Canadian levers (RRIF minimums after 71, the OAS clawback near $95,323, pension income splitting after 65, and TFSA room). Do not invent figures the model does not provide; if something is outside the model, say so. You are not a licensed financial advisor \u2014 note that briefly for any consequential decision. CURRENT_PLAN = "+planContext(); }
@@ -864,6 +894,61 @@ function updateAskHint(){ const h=document.getElementById("askHint"); if(!h)retu
   const ps=document.getElementById("proxySave"); if(ps)ps.onclick=()=>{ try{localStorage.setItem(PROXY_KEY,(document.getElementById("proxyUrl").value||"").trim());}catch(e){} updateAskHint(); alert("Saved."); };
   updateAskHint();
 })();
+</script>
+<script>
+/* ---------- today's budget, debts & retirement earmarks ---------- */
+function debtRow(d,i){ return '<div class="lstrow">'
+  +'<input class="nm" data-bidx="'+i+'" data-bfield="name" value="'+esc(d.name||"")+'" placeholder="Name">'
+  +'<input data-bidx="'+i+'" data-bfield="bal" inputmode="decimal" value="'+(d.bal||0)+'" title="Balance">'
+  +'<input data-bidx="'+i+'" data-bfield="rate" inputmode="decimal" value="'+(((d.rate||0)*100).toFixed(2))+'" title="Interest rate %">'
+  +'<input data-bidx="'+i+'" data-bfield="pay" inputmode="decimal" value="'+(d.pay||0)+'" title="Payment per year">'
+  +'<button type="button" class="del delDebt" data-bidx="'+i+'" title="Remove">\u00d7</button></div>'; }
+function earmarkRow(e,i){ return '<div class="lstrow ear">'
+  +'<input class="nm" data-eidx="'+i+'" data-efield="name" value="'+esc(e.name||"")+'" placeholder="Name">'
+  +'<input data-eidx="'+i+'" data-efield="amt" inputmode="decimal" value="'+(e.amt||0)+'" title="Amount per year">'
+  +'<input data-eidx="'+i+'" data-efield="from" inputmode="numeric" value="'+(e.from||65)+'" title="From Ron age">'
+  +'<input data-eidx="'+i+'" data-efield="to" inputmode="numeric" value="'+(e.to||80)+'" title="To Ron age">'
+  +'<button type="button" class="del delEarmark" data-eidx="'+i+'" title="Remove">\u00d7</button></div>'; }
+function budgetInner(){
+  const debts=S.debts||[], ear=S.earmarks||[];
+  return '<section class="sgroup budget"><h3>Today\u2019s budget &amp; debt</h3>'
+    +'<div class="sfield"><div class="sf-l"><label>Current living expenses / yr</label><p>Your take-home spending today, excluding the mortgage and the debts below. Whatever is left of your after-tax pay once this, the mortgage and debt payments are covered is what gets saved.</p></div>'
+    +'<div class="sf-c"><div class="sinput"><input inputmode="decimal" id="currentExpenses" value="'+(S.currentExpenses||0)+'"></div></div></div>'
+    +'<div class="lstlabel">Debts <span>credit cards, lines of credit, car loans \u2014 not the mortgage</span></div>'
+    +(debts.length?'<div class="lsthead"><span class="l">Name</span><span>Balance</span><span>Rate %</span><span>Payment/yr</span><span></span></div>':'')
+    +debts.map(debtRow).join("")
+    +'<button type="button" class="btn addDebt">+ Add debt</button></section>'
+    +'<section class="sgroup budget"><h3>Retirement extras (earmarked spending)</h3>'
+    +'<p>Goals on top of your core retirement budget \u2014 travel, a new car, gifts. The amount applies each year between the ages shown; for a one-time cost, set the same From and To age. Ages are Ron\u2019s.</p>'
+    +(ear.length?'<div class="lsthead ear"><span class="l">Name</span><span>Amount/yr</span><span>From</span><span>To</span><span></span></div>':'')
+    +ear.map(earmarkRow).join("")
+    +'<button type="button" class="btn addEarmark">+ Add earmark</button></section>';
+}
+function budgetHTML(){ return '<div id="budgetWrap">'+budgetInner()+'</div>'; }
+function regenBudget(){ const w=document.getElementById("budgetWrap"); if(w)w.innerHTML=budgetInner(); saveState(); run(); }
+function bChange(t){
+  if(t.id==="currentExpenses"){ S.currentExpenses=parseFloat(t.value)||0; saveState(); run(); return; }
+  if(t.dataset && t.dataset.bidx!==undefined){ const i=+t.dataset.bidx, fld=t.dataset.bfield; if(!S.debts[i])return;
+    if(fld==="name")S.debts[i].name=t.value;
+    else if(fld==="rate")S.debts[i].rate=(parseFloat(t.value)||0)/100;
+    else S.debts[i][fld]=parseFloat(t.value)||0;
+    saveState(); run(); return; }
+  if(t.dataset && t.dataset.eidx!==undefined){ const i=+t.dataset.eidx, fld=t.dataset.efield; if(!S.earmarks[i])return;
+    if(fld==="name")S.earmarks[i].name=t.value;
+    else if(fld==="from"||fld==="to")S.earmarks[i][fld]=Math.round(parseFloat(t.value)||0);
+    else S.earmarks[i][fld]=parseFloat(t.value)||0;
+    saveState(); run(); return; }
+}
+function wireBudget(){
+  const w=document.getElementById("budgetWrap"); if(!w)return;
+  w.addEventListener("change",function(e){ if(e.target && e.target.tagName==="INPUT") bChange(e.target); });
+  w.addEventListener("click",function(e){ const t=e.target; if(!t.classList)return;
+    if(t.classList.contains("addDebt")){ S.debts.push({name:"Debt",bal:0,rate:0.06,pay:0}); regenBudget(); }
+    else if(t.classList.contains("delDebt")){ S.debts.splice(+t.dataset.bidx,1); regenBudget(); }
+    else if(t.classList.contains("addEarmark")){ S.earmarks.push({name:"Goal",amt:10000,from:65,to:75}); regenBudget(); }
+    else if(t.classList.contains("delEarmark")){ S.earmarks.splice(+t.dataset.eidx,1); regenBudget(); }
+  });
+}
 </script>
 </body>
 </html>
