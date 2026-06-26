@@ -744,7 +744,7 @@ function initFirebase(){
   try{
     fbApp=(firebase.apps&&firebase.apps.length)?firebase.app():firebase.initializeApp(cfg);
     fbAuth=firebase.auth(); fbDb=firebase.firestore(); fbReady=true;
-    fbAuth.onAuthStateChanged(function(u){ fbUser=u; updateAuthUI(); if(u)cloudLoad(); });
+    fbAuth.onAuthStateChanged(function(u){ fbUser=u; updateAuthUI(); if(typeof updateAskHint==="function")updateAskHint(); if(u)cloudLoad(); });
   }catch(e){ console.warn('Firebase init failed',e); fbReady=false; updateAuthUI(); }
 }
 function signIn(){ if(!fbReady){ alert('Add your Firebase config in Settings \u2192 Cloud sync first.'); return; }
@@ -803,6 +803,7 @@ initFirebase();
 /* ---------- ask Claude about the plan ---------- */
 const PROXY_KEY='ronkate.claudeproxy';
 function getProxy(){ try{return localStorage.getItem(PROXY_KEY)||"";}catch(e){return "";} }
+function signedIn(){ return typeof fbUser!=="undefined" && !!fbUser; }
 let chatHistory=[];
 function planContext(){
   const r=simulate(S); const ceiling=maxSpend(S);
@@ -840,6 +841,12 @@ function addMsg(role,html){ const d=document.createElement("div"); d.className="
   const log=document.getElementById("chatLog"); log.appendChild(d); log.scrollTop=log.scrollHeight; return d; }
 async function ask(){
   const inp=document.getElementById("askInput"); const q=(inp.value||"").trim(); if(!q)return;
+  if(getProxy() && !signedIn()){
+    const tt=addMsg("bot",""); tt.innerHTML="<p>This site requires Google sign-in before Claude will answer.</p>";
+    const b=document.createElement("button"); b.className="btn"; b.style.marginTop="6px"; b.textContent="Sign in with Google";
+    b.onclick=function(){ if(typeof signIn==="function")signIn(); }; tt.appendChild(b);
+    return;
+  }
   inp.value=""; addMsg("user",esc(q)); chatHistory.push({role:"user",content:q});
   const t=addMsg("bot","<span class='typing'>Thinking\u2026</span>");
   try{ const text=await callModel(chatHistory); t.innerHTML=mdLite(text); chatHistory.push({role:"assistant",content:text}); }
@@ -847,7 +854,9 @@ async function ask(){
       ? ("Could not reach your proxy ("+e.message+"). Check the URL and that the function is deployed and allows this site.")
       : ("Claude isn't reachable from here. Inside Claude.ai this answers automatically; on your published site, add your proxy URL under \u201cConnect Claude\u201d below. ("+e.message+")")); }
 }
-function updateAskHint(){ const h=document.getElementById("askHint"); if(h)h.textContent=getProxy()?"Routing through your proxy endpoint.":"Using Claude directly (works inside Claude.ai)."; }
+function updateAskHint(){ const h=document.getElementById("askHint"); if(!h)return;
+  if(getProxy()){ h.textContent = signedIn() ? "Routing through your proxy — signed in." : "Sign-in required: tap “Sign in with Google” at the top, then ask."; }
+  else { h.textContent="Using Claude directly (works inside Claude.ai)."; } }
 (function(){
   const send=document.getElementById("askSend"); if(send)send.addEventListener("click",ask);
   const inp=document.getElementById("askInput"); if(inp)inp.addEventListener("keydown",e=>{ if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)){ e.preventDefault(); ask(); }});
