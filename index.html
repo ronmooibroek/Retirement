@@ -828,7 +828,7 @@ async function callModel(messages){
   if(proxy && typeof fbUser!=="undefined" && fbUser){ try{ headers["Authorization"]="Bearer "+(await fbUser.getIdToken()); }catch(e){} }
   const res=await fetch(url,{method:"POST",headers:headers,
     body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1000,system:sysPrompt(),messages:messages})});
-  if(!res.ok) throw new Error("HTTP "+res.status);
+  if(!res.ok){ let detail=""; try{ detail=await res.text(); }catch(e){} throw new Error("HTTP "+res.status+(detail?(" \u2014 "+detail.slice(0,300)):"")); }
   const data=await res.json();
   if(data.content&&Array.isArray(data.content)) return data.content.filter(b=>b.type==="text").map(b=>b.text).join("\n").trim();
   if(typeof data.text==="string") return data.text;
