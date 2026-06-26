@@ -158,6 +158,27 @@ tbody tr.evt td:first-child{color:var(--brass)}
 .sgroup.cloud code{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text);background:var(--panel2);padding:1px 5px;border-radius:4px}
 .sgroup.cloud b{color:var(--text)}
 .sgroup.cloud textarea{width:100%;background:var(--ink);border:1px solid var(--line);color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:11px;border-radius:8px;padding:10px;resize:vertical;margin:6px 0 10px;min-height:90px}
+
+/* ask Claude panel */
+.chatlog{display:flex;flex-direction:column;gap:10px;max-height:360px;overflow:auto;margin:4px 0 12px}
+.chatlog:empty{display:none}
+.msg{padding:10px 13px;border-radius:12px;font-size:13.5px;line-height:1.55;max-width:92%}
+.msg.user{align-self:flex-end;background:rgba(199,162,74,.13);border:1px solid rgba(199,162,74,.28)}
+.msg.bot{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);color:var(--text)}
+.msg.bot p{margin:0 0 8px}.msg.bot p:last-child{margin:0}
+.msg.bot strong{color:var(--brass);font-weight:600}
+.askrow{display:flex;gap:8px;align-items:flex-end}
+.askrow textarea,.askrow input{flex:1;background:var(--ink);border:1px solid var(--line);color:var(--text);font-family:Inter;font-size:13.5px;border-radius:10px;padding:11px;resize:vertical}
+.askrow textarea{min-height:48px}.askrow input{font-family:'JetBrains Mono',monospace;font-size:12px}
+.askrow textarea:focus-visible,.askrow input:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+.askrow .btn{align-self:stretch;padding:0 20px;white-space:nowrap}
+.askhint{color:var(--faint);font-size:11.5px;margin-top:9px}
+.typing{color:var(--muted);font-size:13px;font-style:italic}
+.askcfg{margin-top:14px;border-top:1px solid var(--line);padding-top:6px}
+.askcfg summary{cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);list-style:none;padding:8px 0}
+.askcfg summary::-webkit-details-marker{display:none}.askcfg summary::before{content:"+ ";color:var(--brass)}
+.askcfg[open] summary::before{content:"\2013 "}
+.askcfg p{color:var(--faint);font-size:12px;line-height:1.5;max-width:74ch;margin:0 0 10px}
 </style>
 </head>
 <body>
@@ -273,6 +294,20 @@ tbody tr.evt td:first-child{color:var(--brass)}
       <div class="card">
         <div class="hd"><div><h2>What this is telling you</h2></div></div>
         <ul class="insights" id="insights"></ul>
+      </div>
+      <div class="card" id="askCard">
+        <div class="hd"><div><h2>Ask about your plan</h2>
+        <div class="cap">Answered live using your current numbers. Not financial advice.</div></div></div>
+        <div id="chatLog" class="chatlog"></div>
+        <div class="askrow">
+          <textarea id="askInput" rows="2" placeholder="e.g. Can we afford $130k/yr if Ron retires at 62? What if returns are only 4%?"></textarea>
+          <button id="askSend" class="btn">Ask</button>
+        </div>
+        <div id="askHint" class="askhint"></div>
+        <details class="askcfg"><summary>Connect Claude for your published site</summary>
+          <p>Inside Claude.ai this works with no setup. On your GitHub Pages site the browser can&rsquo;t safely hold an API key, so point this at your own server-side proxy (e.g. a Firebase Function that keeps the key secret) and paste its URL here.</p>
+          <div class="askrow"><input id="proxyUrl" placeholder="https://...cloudfunctions.net/askClaude"><button id="proxySave" class="btn">Save</button></div>
+        </details>
       </div>
     </main>
   </div>
@@ -763,6 +798,63 @@ function wireCloud(){
   updateAuthUI();
 }
 initFirebase();
+</script>
+<script>
+/* ---------- ask Claude about the plan ---------- */
+const PROXY_KEY='ronkate.claudeproxy';
+function getProxy(){ try{return localStorage.getItem(PROXY_KEY)||"";}catch(e){return "";} }
+let chatHistory=[];
+function planContext(){
+  const r=simulate(S); const ceiling=maxSpend(S);
+  const ctx={ currency:'today CAD',
+    people:{ron_age:2026-S.ronBirth,kate_age:2026-S.kateBirth,ron_retire_age:S.ronRetire,kate_retire_age:S.kateRetire,plan_to_age:{ron:S.ronLE,kate:S.kateLE}},
+    spend_target_per_yr:S.spendToday, sustainable_spend_ceiling_per_yr:ceiling,
+    plan_status:r.success?('funded to age '+S.kateLE):('shortfall begins '+r.firstShort),
+    estate_at_horizon:Math.round(r.estate), lifetime_tax:Math.round(r.ltTax), peak_oas_clawback_per_yr:Math.round(r.peakClaw),
+    mortgage_payoff_year:r.payoff, pension_value_at_ron_retirement:Math.round(r.pensionAtRet||0),
+    accounts_now:{rrsp_ron:S.regRon,rrsp_kate:S.regKate,tfsa:S.tfsa,taxable_definity:S.taxable,pension_dc:S.pension,unused_tfsa_room:S.tfsaRoom},
+    benefits:{ron_cpp_at65:S.rcpp,kate_cpp_at65:S.kcpp,oas_max_each:S.oasBase,cpp_start_age:{ron:S.ronCppAge,kate:S.kateCppAge},oas_start_age:S.oasAge,kate_db_per_yr:S.kateDb,kate_db_indexed:S.dbIndexed},
+    assumptions:{investment_return:S.ret,inflation:S.infl,drawdown_strategy:S.strategy,meltdown_bracket_target:S.meltTarget},
+    home:{value:S.home,mortgage:S.mort,downsize_age:S.downsizeAge} };
+  return JSON.stringify(ctx);
+}
+function sysPrompt(){ return "You are a retirement-planning assistant embedded in Ron and Kate's personal decumulation tool for Ontario, Canada. Answer using the figures in CURRENT_PLAN below, which reflect their live model settings and computed results (today's Canadian dollars unless noted). Be concise and specific, cite the actual numbers, and surface trade-offs and the key Canadian levers (RRIF minimums after 71, the OAS clawback near $95,323, pension income splitting after 65, and TFSA room). Do not invent figures the model does not provide; if something is outside the model, say so. You are not a licensed financial advisor \u2014 note that briefly for any consequential decision. CURRENT_PLAN = "+planContext(); }
+
+async function callModel(messages){
+  const proxy=getProxy();
+  const url=proxy||"https://api.anthropic.com/v1/messages";
+  const headers={"Content-Type":"application/json"};
+  if(proxy && typeof fbUser!=="undefined" && fbUser){ try{ headers["Authorization"]="Bearer "+(await fbUser.getIdToken()); }catch(e){} }
+  const res=await fetch(url,{method:"POST",headers:headers,
+    body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1000,system:sysPrompt(),messages:messages})});
+  if(!res.ok) throw new Error("HTTP "+res.status);
+  const data=await res.json();
+  if(data.content&&Array.isArray(data.content)) return data.content.filter(b=>b.type==="text").map(b=>b.text).join("\n").trim();
+  if(typeof data.text==="string") return data.text;
+  if(typeof data.reply==="string") return data.reply;
+  return JSON.stringify(data).slice(0,500);
+}
+function esc(s){ return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+function mdLite(s){ return "<p>"+esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/\n\n+/g,"</p><p>").replace(/\n/g,"<br>")+"</p>"; }
+function addMsg(role,html){ const d=document.createElement("div"); d.className="msg "+(role==="user"?"user":"bot"); d.innerHTML=html;
+  const log=document.getElementById("chatLog"); log.appendChild(d); log.scrollTop=log.scrollHeight; return d; }
+async function ask(){
+  const inp=document.getElementById("askInput"); const q=(inp.value||"").trim(); if(!q)return;
+  inp.value=""; addMsg("user",esc(q)); chatHistory.push({role:"user",content:q});
+  const t=addMsg("bot","<span class='typing'>Thinking\u2026</span>");
+  try{ const text=await callModel(chatHistory); t.innerHTML=mdLite(text); chatHistory.push({role:"assistant",content:text}); }
+  catch(e){ t.innerHTML=mdLite(getProxy()
+      ? ("Could not reach your proxy ("+e.message+"). Check the URL and that the function is deployed and allows this site.")
+      : ("Claude isn't reachable from here. Inside Claude.ai this answers automatically; on your published site, add your proxy URL under \u201cConnect Claude\u201d below. ("+e.message+")")); }
+}
+function updateAskHint(){ const h=document.getElementById("askHint"); if(h)h.textContent=getProxy()?"Routing through your proxy endpoint.":"Using Claude directly (works inside Claude.ai)."; }
+(function(){
+  const send=document.getElementById("askSend"); if(send)send.addEventListener("click",ask);
+  const inp=document.getElementById("askInput"); if(inp)inp.addEventListener("keydown",e=>{ if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)){ e.preventDefault(); ask(); }});
+  const pu=document.getElementById("proxyUrl"); if(pu)pu.value=getProxy();
+  const ps=document.getElementById("proxySave"); if(ps)ps.onclick=()=>{ try{localStorage.setItem(PROXY_KEY,(document.getElementById("proxyUrl").value||"").trim());}catch(e){} updateAskHint(); alert("Saved."); };
+  updateAskHint();
+})();
 </script>
 </body>
 </html>
