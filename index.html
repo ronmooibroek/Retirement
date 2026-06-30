@@ -196,6 +196,7 @@ tbody tr.evt td:first-child{color:var(--brass)}
 .sgroup.budget .btn{margin-top:8px}
 .sgroup.budget p{color:var(--muted);font-size:12.5px;line-height:1.5;max-width:76ch;margin:0 0 8px}
 @media(max-width:880px){.lsthead{display:none}.lstrow,.lstrow.ear{grid-template-columns:1fr 1fr auto;gap:5px}}
+.refreshbtn{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.05em;padding:6px 12px}
 </style>
 </head>
 <body>
@@ -309,7 +310,7 @@ tbody tr.evt td:first-child{color:var(--brass)}
       </div>
 
       <div class="card">
-        <div class="hd"><div><h2>What this is telling you</h2></div></div>
+        <div class="hd"><div><h2>What this is telling you</h2></div><button id="refreshInsights" class="btn refreshbtn" type="button">&#8635; Refresh</button></div>
         <ul class="insights" id="insights"></ul>
       </div>
       <div class="card" id="askCard">
@@ -381,7 +382,7 @@ function simulate(p){
     let wSurplus=0;
     const spendNeed=phaseB?(p.spendToday*f+earmark+(mort>0?mPay:0)+debtPay):0;
     const ron={age:aR,ord:0,elig:0,oas:0,canSplit:aR>=65}, kate={age:aK,ord:0,elig:0,oas:0,canSplit:true};
-    if(rAlive&&!rRet)ron.ord+=p.ronSalary*f;
+    if(rAlive&&!rRet)ron.ord+=p.ronSalary*Math.pow(1+(p.ronRaise||0),y-2026);
     if(kAlive&&!kRet)kate.ord+=p.kateSalary*f;
     const dbI=(kAlive&&kRet)?(p.dbIndexed?p.kateDb*f:p.kateDb):0; kate.elig+=dbI;
     let rCpp=0,kCpp=0;
@@ -449,7 +450,7 @@ function simulate(p){
     rows.push({y,aR,aK,f,phaseB,
       regRon,regKate,reg:regRon+regKate,pension,tfsa,taxable,port,home,mort,eq:Math.max(0,home-mort),
       spend:spendNeed,
-      emp:(rAlive&&!rRet?p.ronSalary*f:0)+(kAlive&&!kRet?p.kateSalary*f:0),
+      emp:(rAlive&&!rRet?p.ronSalary*Math.pow(1+(p.ronRaise||0),y-2026):0)+(kAlive&&!kRet?p.kateSalary*f:0),
       db:dbI, cpp:rCpp+kCpp, oas:phaseB?oasNet:0,
       regDraw:wRon+wKate, savDraw:wTax+wTfsa,
       tax:rowTax, claw:phaseB?rowClaw:0,
@@ -467,7 +468,7 @@ function maxSpend(p){let lo=80000,hi=400000;for(let i=0;i<24;i++){const mid=(lo+
 <script>
 /* ---------- state ---------- */
 const DEFAULTS={ronBirth:1970,kateBirth:1978,kateRetire:55,ronRetire:65,ronCppAge:65,kateCppAge:65,oasAge:65,oasBase:8908,
-  ronSalary:198000,kateSalary:80000,kateDb:24000,dbIndexed:false,rcpp:18000,kcpp:18000,
+  ronSalary:198000,ronRaise:0.03,kateSalary:80000,kateDb:24000,dbIndexed:false,rcpp:18000,kcpp:18000,
   regRon:120000,regKate:100000,pension:800000,tfsa:0,taxable:205000,acb:120000,tfsaRoom:218000,tfsaNewRoom:7000,tfsaFundPre:13000,
   ret:0.055,infl:0.021,pc:50000,home:900000,homeGrowth:0.03,mort:650000,mortgageRate:0.045,mpay:54000,downsizeAge:75,downsizeRelease:0.5,ronLE:90,kateLE:95,
   strategy:'meltdown',meltTarget:95323,spendToday:100000,
@@ -583,12 +584,12 @@ function drawTable(r){
 }
 function drawInsights(r,ceiling){
   const items=[
-    `<b>You can spend more.</b> At your $100k target the model leaves ~${fmtK(simulate({...S,spendToday:100000}).estate)} behind. Sustainable spending runs to about <b>${fmtK(ceiling)}/yr</b> — roughly ${Math.round((ceiling/100000-1)*100)}% more lifestyle.`,
+    `<b>You can spend more.</b> At your ${fmtK(S.spendToday)} target the plan leaves about ${fmtK(r.estate)} behind. Sustainable spending runs to about <b>${fmtK(ceiling)}/yr</b> — roughly ${Math.round((ceiling/Math.max(1,S.spendToday)-1)*100)}% more lifestyle.`,
     `<b>The real risk isn&rsquo;t running out — it&rsquo;s tax.</b> Your pension reaches ~${fmtK(r.pensionAtRet||1900000)} by retirement. Left alone, forced RRIF minimums after 71 would spike taxable income; the meltdown strategy pulls it down early in low-bracket years.`,
     `<b>Pension splitting is your shield.</b> Splitting Ron&rsquo;s pension/RRIF income with Kate after 65 keeps both under the $95,323 OAS line — which is why peak clawback here is only ${fmt$(r.peakClaw)}.`,
-    `<b>Fill the empty TFSAs.</b> You have roughly $218k combined room sitting unused while $205k of Definity sits taxable. TFSA withdrawals never count toward the OAS clawback — move money across as brackets allow.`,
+    `<b>Fill the empty TFSAs.</b> You have roughly ${fmtK(S.tfsaRoom)} combined TFSA room sitting unused while ${fmtK(S.taxable)} of Definity sits taxable. TFSA withdrawals never count toward the OAS clawback — move money across as brackets allow.`,
     `<b>Diversify Definity.</b> A single-stock position that size carries concentration risk independent of the tax question; the low-income window is the cheapest time to trim it.`,
-    `<b>Kate&rsquo;s 55–65 window is gold.</b> A decade on just her ~$24k DB pension means very low brackets — ideal for melting registered money and realizing Definity gains cheaply before CPP/OAS start.`,
+    `<b>Kate&rsquo;s 55–65 window is gold.</b> A decade on just her ~${fmtK(S.kateDb)} DB pension means very low brackets — ideal for melting registered money and realizing Definity gains cheaply before CPP/OAS start.`,
     `<b>The house is a second lever.</b> Mortgage clears around ${r.payoff||'—'}; downsizing at ${S.downsizeAge} frees equity you could also spend, pushing the estate toward your minimal-estate goal.`,
     `<b>Delaying CPP/OAS is worth testing.</b> Pushing both toward 70 trades early cash for larger inflation-indexed income for life — slide the benefit ages and watch lifetime tax and the estate move.`
   ];
@@ -638,7 +639,7 @@ const FIELDS=[
   {k:'kateRetire',l:'Kate retires at age',t:'int',h:'Her salary stops and DB pension begins.'},
   {k:'ronRetire',l:'Ron retires at age',t:'int',h:'His salary stops and the pension converts to a LIF/RRIF.'} ]},
  {group:'Employment income (today $)',items:[
-  {k:'ronSalary',l:'Ron \u2014 salary / yr',t:'money',h:'Gross employment income while working.'},
+  {k:'ronSalary',l:'Ron \u2014 salary / yr',t:'money',h:'Gross employment income while working.'},{k:'ronRaise',l:'Ron \u2014 annual raise %',t:'pct',h:'Nominal raise applied each year Ron works. Set near inflation for flat real pay; higher for real career growth.'},
   {k:'kateSalary',l:'Kate \u2014 salary / yr',t:'money',h:'Gross employment income while working.'} ]},
  {group:'Pensions',items:[
   {k:'pension',l:'Ron DC pension \u2014 value now',t:'money',h:'Current balance of Ron\u2019s defined-contribution pension.'},
@@ -716,7 +717,7 @@ function renderSettings(){
   document.getElementById('btnLoad').addEventListener('click',()=>{ const t=prompt('Paste your saved settings text:'); if(!t)return; try{ const o=JSON.parse(t); Object.keys(DEFAULTS).forEach(k=>{ if(o[k]!==undefined)S[k]=o[k]; }); saveState(); renderSettings(); syncDashboard(); }catch(e){ alert('That did not look like valid settings text.'); }});
   wireCloud(); wireBudget();
 }
-function afterSettingsChange(){ saveDebounced(); syncDashboard(); const jb=document.getElementById('jsonBox'); if(jb)jb.value=JSON.stringify(S); }
+function afterSettingsChange(){ saveDebounced(); run(); syncDashboard(); const jb=document.getElementById('jsonBox'); if(jb)jb.value=JSON.stringify(S); }
 
 function syncDashboard(){
   Object.keys(sliderMap).forEach(id=>{ const el=document.getElementById(id); if(!el)return; let v=S[sliderMap[id]];
@@ -892,6 +893,7 @@ function updateAskHint(){ const h=document.getElementById("askHint"); if(!h)retu
   const inp=document.getElementById("askInput"); if(inp)inp.addEventListener("keydown",e=>{ if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)){ e.preventDefault(); ask(); }});
   const pu=document.getElementById("proxyUrl"); if(pu)pu.value=getProxy();
   const ps=document.getElementById("proxySave"); if(ps)ps.onclick=()=>{ try{localStorage.setItem(PROXY_KEY,(document.getElementById("proxyUrl").value||"").trim());}catch(e){} updateAskHint(); alert("Saved."); };
+  const _ri=document.getElementById("refreshInsights"); if(_ri)_ri.addEventListener("click",function(){ run(); });
   updateAskHint();
 })();
 </script>
